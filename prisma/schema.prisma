@@ -1,0 +1,385 @@
+// Estación Verde — Módulo Diario
+// Modelo de datos según §3 de especificacion-modulo-diario.md
+//
+// Reglas que atraviesan todo el schema:
+//   - Todo monto es Decimal @db.Decimal(14,2) → NUMERIC en Postgres. Nunca Float (§7.1).
+//   - Bolsa Grande (efectivo) y cartera de cheques (nominal) son saldos separados (§2.1).
+//     La cartera no tiene tabla propia: es el conjunto de cheques con estado = en_cartera.
+//   - El ahorro por cheques no vive en movimiento_caja. Se deriva de los cheques
+//     entregados, agrupados por fecha_entrega (§2.3).
+//
+// TODO(auth): §3 define usuario_id en turno, movimiento_caja y movimiento_cuenta_corriente.
+//   Se omite hasta que exista Better Auth. La migración que lo agregue tiene que crear la
+//   columna nullable, backfillearla y recién entonces imponer NOT NULL + FK a User.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// §3.1 Caja / Bolsa Grande
+// ---------------------------------------------------------------------------
+
+enum EstadoTurno {
+  abierto
+  cerrado
+}
+
+enum TipoMovimientoCaja {
+  ingreso
+  egreso
+}
+
+/// Origen del movimiento. referencia_id apunta al registro que lo generó,
+/// sin FK: es polimórfica a propósito (§3.1).
+enum ReferenciaMovimientoCaja {
+  retiro_turno
+  compra_cheque
+  pago_proveedor
+  cobro_cliente
+  gasto
+  retiro_socio
+  manual
+}
+
+model Turno {
+  id     String      @id @default(cuid())
+  fecha  DateTime    @db.Date
+  /// 'mañana' | 'tarde'. String y no enum a propósito: §8.4 (¿siempre son dos
+  /// turnos por día?) está sin resolver, y un enum obligaría a migrar para agregar uno.
+  nombre String
+  estado EstadoTurno @default(abierto)
+
+  fechaApertura DateTime  @default(now()) @map("fecha_apertura")
+  fechaCierre   DateTime? @map("fecha_cierre")
+
+  observacion String?
+
+  movimientos MovimientoCaja[]
+
+  @@index([fecha])
+  @@index([estado])
+  @@map("turno")
+}
+
+/// Tabla y no enum por decisión de §3.1: van a querer agregar categorías sin tocar el código.
+model CategoriaMovimiento {
+  id     String             @id @default(cuid())
+  nombre String             @unique
+  tipo   TipoMovimientoCaja
+  /// Discrimina las categorías que crea el sistema (retiro de turno, compra de
+  /// cheques, pago a proveedor) de las que puede agregar el operador.
+  /// Las del sistema no deberían borrarse ni renombrarse.
+  slug   String             @unique
+  activo Boolean            @default(true)
+  orden  Int                @default(0)
+
+  movimientos MovimientoCaja[]
+
+  @@map("categoria_movimiento")
+}
+
+/// Movimiento de la Bolsa Grande. Es la única tabla que alimenta el reporte de §5.1.
+/// Comprar un cheque genera uno (egreso); entregarlo NO genera ninguno (§2.3, §4.3).
+model MovimientoCaja {
+  id    String   @id @default(cuid())
+  fecha DateTime @default(now())
+
+  /// Nullable: puede haber movimientos fuera de turno (§3.1).
+  turnoId String? @map("turno_id")
+  turno   Turno?  @relation(fields: [turnoId], references: [id], onDelete: Restrict)
+
+  tipo        TipoMovimientoCaja
+  categoriaId String              @map("categoria_id")
+  categoria   CategoriaMovimiento @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+
+  /// Siempre positivo. El signo lo da `tipo` (§3.1).
+  /// Hay un CHECK (monto > 0) en la migración.
+  monto Decimal @db.Decimal(14, 2)
+
+  referenciaTipo ReferenciaMovimientoCaja @map("referencia_tipo")
+  /// FK polimórfica, sin constraint de integridad referencial.
+  referenciaId   String?                  @map("referencia_id")
+
+  observacion String?
+
+  @@index([fecha, tipo])
+  @@index([turnoId])
+  @@index([categoriaId])
+  @@index([referenciaTipo, referenciaId])
+  @@map("movimiento_caja")
+}
+
+// ---------------------------------------------------------------------------
+// §3.2 Cheques
+// ---------------------------------------------------------------------------
+
+enum EstadoCheque {
+  en_cartera
+  entregado
+  /// TODO(§8.2): sin resolver si la verdulería hace seguimiento de que el proveedor
+  /// haya cobrado el cheque. Si no lo hace, este estado sobra y hay que sacarlo.
+  acreditado
+  rechazado
+}
+
+model VendedorCheque {
+  id       String  @id @default(cuid())
+  nombre   String
+  contacto String?
+  activo   Boolean @default(true)
+
+  cheques Cheque[]
+
+  @@map("vendedor_cheque")
+}
+
+/// Un cheque de terceros. Mientras está `en_cartera` forma parte del saldo de
+/// cartera, medido a valor nominal (§2.1).
+model Cheque {
+  id       String @id @default(cuid())
+  numero   String
+  banco    String
+  librador String
+
+  /// Valor de cara del cheque. Es lo que entra a la cartera y lo que cancela deuda.
+  nominal             Decimal @db.Decimal(14, 2)
+  /// Lo que tipea el operador, en puntos porcentuales (12.5 = 12,5 %).
+  porcentajeDescuento Decimal @map("porcentaje_descuento") @db.Decimal(5, 2)
+  /// Calculado: nominal × (1 − porcentaje/100), redondeado a 2 decimales half-up.
+  /// Es el efectivo que sale de la Bolsa Grande al comprarlo.
+  montoPagado         Decimal @map("monto_pagado") @db.Decimal(14, 2)
+  /// Calculado: nominal − monto_pagado. Se guarda (y no se recalcula) para que los
+  /// históricos no cambien si cambia la política de redondeo (§3.2).
+  /// Latente hasta la entrega: acá no significa que el ahorro esté realizado (§2.3).
+  ahorro              Decimal @db.Decimal(14, 2)
+
+  fechaCompra      DateTime @default(now()) @map("fecha_compra")
+  /// TODO(§8.1): sin resolver qué pasa con un cheque que vence en cartera sin entregarse.
+  fechaVencimiento DateTime @map("fecha_vencimiento") @db.Date
+
+  vendedorChequeId String         @map("vendedor_cheque_id")
+  vendedorCheque   VendedorCheque @relation(fields: [vendedorChequeId], references: [id], onDelete: Restrict)
+
+  estado EstadoCheque @default(en_cartera)
+
+  /// Fecha a la que se imputa el ahorro realizado (§6). Null hasta la entrega.
+  fechaEntrega       DateTime?  @map("fecha_entrega")
+  proveedorDestinoId String?    @map("proveedor_destino_id")
+  proveedorDestino   Proveedor? @relation(fields: [proveedorDestinoId], references: [id], onDelete: Restrict)
+
+  /// §4.4 pide registrar fecha y motivo del rechazo. §3.2 no los lista; se agregan
+  /// porque sin ellos el historial de rechazos por librador y por vendedor (§5.2)
+  /// no se puede armar.
+  fechaRechazo  DateTime? @map("fecha_rechazo")
+  motivoRechazo String?   @map("motivo_rechazo")
+
+  observacion String?
+
+  imputaciones ImputacionCheque[]
+  pagos        PagoProveedor[]
+
+  @@unique([banco, numero, librador])
+  @@index([estado, fechaVencimiento])
+  @@index([fechaEntrega])
+  @@index([librador])
+  @@index([vendedorChequeId])
+  @@map("cheque")
+}
+
+/// Resuelve que un cheque cubra varias facturas (§3.2). Deliberadamente NO hay
+/// un factura_id en `cheque`.
+/// Invariante: Σ monto_imputado de un cheque ≤ cheque.nominal (§4.3).
+model ImputacionCheque {
+  id String @id @default(cuid())
+
+  chequeId String @map("cheque_id")
+  cheque   Cheque @relation(fields: [chequeId], references: [id], onDelete: Cascade)
+
+  facturaProveedorId String           @map("factura_proveedor_id")
+  factura            FacturaProveedor @relation(fields: [facturaProveedorId], references: [id], onDelete: Restrict)
+
+  montoImputado Decimal @map("monto_imputado") @db.Decimal(14, 2)
+
+  @@unique([chequeId, facturaProveedorId])
+  @@index([facturaProveedorId])
+  @@map("imputacion_cheque")
+}
+
+// ---------------------------------------------------------------------------
+// §3.3 Proveedores
+// ---------------------------------------------------------------------------
+
+enum EstadoFactura {
+  pendiente
+  parcial
+  pagada
+}
+
+enum MedioPago {
+  efectivo
+  cheque
+  transferencia
+}
+
+model Proveedor {
+  id       String  @id @default(cuid())
+  nombre   String
+  contacto String?
+
+  /// Positivo = se le debe. NEGATIVO = saldo a favor, por diseño (§3.3).
+  /// El excedente de un cheque cuyo nominal supera la deuda imputada cae acá y se
+  /// descuenta de la próxima factura. No hay rama especial para ese caso.
+  saldo Decimal @default(0) @db.Decimal(14, 2)
+
+  activo Boolean @default(true)
+
+  facturas         FacturaProveedor[]
+  pagos            PagoProveedor[]
+  chequesRecibidos Cheque[]
+
+  @@index([activo])
+  @@map("proveedor")
+}
+
+model FacturaProveedor {
+  id String @id @default(cuid())
+
+  proveedorId String    @map("proveedor_id")
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Restrict)
+
+  numero           String
+  fecha            DateTime  @db.Date
+  fechaVencimiento DateTime? @map("fecha_vencimiento") @db.Date
+
+  montoTotal     Decimal       @map("monto_total") @db.Decimal(14, 2)
+  /// Nunca negativo: el excedente de un pago no se acumula acá sino en proveedor.saldo.
+  /// Hay un CHECK (saldo_pendiente >= 0) en la migración.
+  saldoPendiente Decimal       @map("saldo_pendiente") @db.Decimal(14, 2)
+  estado         EstadoFactura @default(pendiente)
+
+  imputacionesCheque ImputacionCheque[]
+  imputacionesPago   ImputacionPago[]
+
+  @@unique([proveedorId, numero])
+  @@index([proveedorId, estado])
+  @@index([fechaVencimiento])
+  @@map("factura_proveedor")
+}
+
+/// Pago a proveedor. Se genera en dos flujos distintos:
+///   - §4.5 efectivo/transferencia → además genera un movimiento_caja de egreso.
+///   - §4.3 entrega de cheque      → medio = cheque, monto = nominal, SIN movimiento_caja.
+/// Cuidado en reportes: sumar esta tabla mezcla efectivo con nominal de cheques.
+/// Para flujo de caja hay que ir a movimiento_caja (§5.1).
+model PagoProveedor {
+  id String @id @default(cuid())
+
+  proveedorId String    @map("proveedor_id")
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id], onDelete: Restrict)
+
+  fecha DateTime  @default(now())
+  medio MedioPago
+  monto Decimal   @db.Decimal(14, 2)
+
+  /// Solo cuando medio = cheque. Hay un CHECK en la migración que lo exige
+  /// y que lo prohíbe para los otros medios.
+  chequeId String? @map("cheque_id")
+  cheque   Cheque? @relation(fields: [chequeId], references: [id], onDelete: Restrict)
+
+  observacion String?
+
+  /// Vacío para medio = cheque: las imputaciones de un cheque viven en
+  /// imputacion_cheque, colgadas del cheque (§3.2).
+  imputaciones ImputacionPago[]
+
+  @@index([proveedorId, fecha])
+  @@index([chequeId])
+  @@map("pago_proveedor")
+}
+
+/// Espejo de imputacion_cheque para los pagos en efectivo/transferencia.
+/// §4.5 dice "mismo flujo de imputación a facturas" pero §3.3 no define la tabla;
+/// se agrega para que un pago en efectivo pueda cubrir varias facturas.
+model ImputacionPago {
+  id String @id @default(cuid())
+
+  pagoProveedorId String        @map("pago_proveedor_id")
+  pago            PagoProveedor @relation(fields: [pagoProveedorId], references: [id], onDelete: Cascade)
+
+  facturaProveedorId String           @map("factura_proveedor_id")
+  factura            FacturaProveedor @relation(fields: [facturaProveedorId], references: [id], onDelete: Restrict)
+
+  montoImputado Decimal @map("monto_imputado") @db.Decimal(14, 2)
+
+  @@unique([pagoProveedorId, facturaProveedorId])
+  @@index([facturaProveedorId])
+  @@map("imputacion_pago")
+}
+
+// ---------------------------------------------------------------------------
+// §3.4 Clientes (cuenta corriente / fiado)
+// ---------------------------------------------------------------------------
+
+enum TipoMovimientoCuentaCorriente {
+  cargo
+  pago
+}
+
+enum ReferenciaCuentaCorriente {
+  manual
+  pago
+  ajuste
+  /// Reservado. Sin uso hoy: el sistema no registra ventas (§2.4).
+  /// Deja la puerta abierta a un POS futuro sin costo.
+  venta
+}
+
+model Cliente {
+  id       String  @id @default(cuid())
+  nombre   String
+  telefono String?
+
+  /// TODO(§8.3): sin POS no hay venta que bloquear. Sin resolver si el límite es
+  /// una advertencia al cargar el fiado o solo un dato informativo.
+  /// 0 o null = sin límite.
+  limiteCredito Decimal? @map("limite_credito") @db.Decimal(14, 2)
+
+  /// Positivo = debe.
+  saldo  Decimal @default(0) @db.Decimal(14, 2)
+  activo Boolean @default(true)
+
+  movimientos MovimientoCuentaCorriente[]
+
+  @@index([nombre])
+  @@index([activo])
+  @@map("cliente")
+}
+
+model MovimientoCuentaCorriente {
+  id String @id @default(cuid())
+
+  clienteId String  @map("cliente_id")
+  cliente   Cliente @relation(fields: [clienteId], references: [id], onDelete: Restrict)
+
+  fecha DateTime                      @default(now())
+  tipo  TipoMovimientoCuentaCorriente
+  monto Decimal                       @db.Decimal(14, 2)
+
+  /// Snapshot del saldo del cliente después de aplicar este movimiento. Permite
+  /// reconstruir el estado de cuenta a cualquier fecha sin recalcular la historia (§3.4).
+  saldoResultante Decimal @map("saldo_resultante") @db.Decimal(14, 2)
+
+  referenciaTipo ReferenciaCuentaCorriente @default(manual) @map("referencia_tipo")
+  referenciaId   String?                   @map("referencia_id")
+
+  observacion String?
+
+  @@index([clienteId, fecha])
+  @@map("movimiento_cuenta_corriente")
+}
