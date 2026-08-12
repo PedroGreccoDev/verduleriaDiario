@@ -8,9 +8,14 @@
 //   - El ahorro por cheques no vive en movimiento_caja. Se deriva de los cheques
 //     entregados, agrupados por fecha_entrega (§2.3).
 //
-// TODO(auth): §3 define usuario_id en turno, movimiento_caja y movimiento_cuenta_corriente.
-//   Se omite hasta que exista Better Auth. La migración que lo agregue tiene que crear la
-//   columna nullable, backfillearla y recién entonces imponer NOT NULL + FK a User.
+// §3 define usuario_id en turno, movimiento_caja y movimiento_cuenta_corriente.
+// NO se implementa: decisión tomada. El sistema tiene un único usuario compartido
+// entre los dos socios, así que el campo guardaría siempre el mismo valor y no
+// distinguiría nada. El login existe para que no entre cualquiera desde internet,
+// no para saber quién hizo cada cosa.
+//
+// Si algún día quieren separar quién carga qué, la migración tiene que agregar la
+// columna nullable, backfillearla y recién entonces imponer NOT NULL + FK.
 
 generator client {
   provider = "prisma-client"
