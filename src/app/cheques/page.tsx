@@ -45,9 +45,14 @@ export default async function PaginaCheques() {
             cosas distintas.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/cheques/comprar">Comprar cheque</Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/cheques/entregas">Entregas</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/cheques/comprar">Comprar cheque</Link>
+          </Button>
+        </div>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-3">

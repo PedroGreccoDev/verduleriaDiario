@@ -238,6 +238,32 @@ Guardar `saldo_resultante` en cada movimiento permite reconstruir el estado de c
 
 **Validación clave:** `Σ imputaciones ≤ nominal`. Nunca puede imputarse más que el valor del cheque.
 
+#### Revertir una entrega mal cargada
+
+El historial de entregas (`/cheques/entregas`) permite deshacer una entrega que se
+cargó mal: el proveedor equivocado, el cheque equivocado, los montos imputados a
+la factura que no era. Revertir invierte los cinco pasos de arriba en una sola
+transacción:
+
+- El cheque vuelve a `en_cartera` y se limpian `fecha_entrega` y `proveedor_destino_id`.
+- Las facturas recuperan el saldo que este cheque les había descontado, y su estado se recalcula.
+- El saldo del proveedor vuelve a subir por el nominal completo.
+- Se borran las imputaciones y el `pago_proveedor` del cheque.
+- **El ahorro deja de estar realizado sin tocar ningún registro**, porque se deriva de `fecha_entrega` y esa fecha desapareció.
+
+**No se usa para un cheque que rebotó.** Ese caso es §4.4 y no toca ningún saldo:
+lo levanta quien vendió el cheque y la deuda con el proveedor queda saldada.
+Revertir ahí reabriría una deuda que la financiera ya pagó, o sea le reclamaría al
+proveedor plata que no debe.
+
+La diferencia es qué se está corrigiendo: una entrega mal cargada **nunca ocurrió**
+y hay que borrarla; una entrega que rebotó **ocurrió de verdad**, y lo único que
+cambia es quién termina poniendo la plata. Por eso `rechazar` exige una entrega
+vigente y revertir la elimina: son mutuamente excluyentes por diseño.
+
+Un pago en efectivo posterior sobre la misma factura no se toca: revertir devuelve
+solo lo que había puesto el cheque.
+
 ### 4.4 Cheque rechazado
 
 1. Se marca el cheque como `rechazado` con fecha y motivo.
@@ -246,6 +272,11 @@ Guardar `saldo_resultante` en cada movimiento permite reconstruir el estado de c
 4. Queda registrado para historial: qué librador rebotó y a qué vendedor se le había comprado.
 
 > El registro es **solo informativo**, pero es la base para dos reportes útiles: libradores con rechazos y vendedores con rechazos. Vale la pena dejarlo bien guardado desde el principio.
+
+Confirmado por el dueño el 13/08/2026: al rebotar, **quien vendió el cheque lo
+levanta y el asunto se termina ahí**. Por eso este flujo no toca saldos y no debe
+confundirse con revertir la entrega (§4.3), que es para corregir una carga
+equivocada.
 
 ### 4.5 Pago a proveedor en efectivo
 
@@ -305,6 +336,11 @@ Separados del anterior, porque miden otra cosa:
 | Carga de datos | Manual. Retiros y fiado los ingresa el operador. |
 | Alcance de reportes | Solo Bolsa Grande. Flujo de caja, no facturación. |
 | Stack | Next.js + TypeScript + PostgreSQL + Prisma sobre Railway. Detalle en §7. |
+| Moneda | Pesos enteros. **No se usan centavos** en ningún monto. |
+| Redondeo del descuento | Siempre a favor de la verdulería: el monto pagado va hacia abajo. |
+| Vencimiento en cartera | No se modela: los cheques nunca llegan al vencimiento sin entregarse. |
+| Reversión de entrega | Existe. Deshace la entrega y devuelve el cheque a la cartera. |
+| Límite de crédito | No hay. Se fía por confianza. |
 
 ---
 
@@ -324,7 +360,11 @@ Elegido pensando en un solo desarrollador, despliegue en Railway desde GitHub, y
 
 ### 7.1 Dos reglas técnicas no negociables
 
-**Montos en `Decimal`, nunca `Float`.** Prisma `Decimal` mapea a `NUMERIC` en Postgres. Con punto flotante, el cálculo de descuento por porcentaje genera diferencias de centavos que después no se pueden explicar ni conciliar.
+**Montos en `Decimal`, nunca `Float`, y en pesos enteros.** Prisma `Decimal` mapea a `NUMERIC` en Postgres, y todos los montos son `NUMERIC(14,0)`: **la moneda es el peso argentino y no se usan centavos**. En la verdulería la plata se cuenta en pesos —no hay monedas de centavo, la registradora no las da y el proveedor no las cobra—, así que un centavo guardado no lo respalda ningún papel del negocio. La escala la impone la base, de modo que un decimal no entra ni por un error de código. El único campo con decimales es `porcentaje_descuento`, que no es un monto.
+
+Con punto flotante, además, el cálculo de descuento por porcentaje genera diferencias que después no se pueden explicar ni conciliar.
+
+**Cuando el porcentaje no da un peso justo, el resto va a favor de la verdulería.** `monto_pagado` se redondea **hacia abajo** —nominal $1.000 al 3,33 % se paga $966, no $967— y `ahorro` se deriva restando: `ahorro = nominal − monto_pagado`. Derivarlo en vez de calcularlo aparte es lo que mantiene la identidad con números enteros; si se redondearan los dos por separado habría nominales donde las columnas del reporte no cierran por un peso. El sesgo va siempre para el mismo lado a propósito: la verdulería paga de menos, nunca de más.
 
 **La entrega de cheque va en una transacción.** Ese flujo (§4.3) toca cinco tablas: cheque, imputaciones, facturas, saldo de proveedor y cartera. Si se corta a la mitad quedan datos inconsistentes que nadie detecta hasta que un reporte da mal. Envolver en `prisma.$transaction()`. Lo mismo aplica a cualquier operación que mueva saldo en más de una tabla.
 
@@ -340,10 +380,32 @@ Al no haber POS (§2.4), una caída de internet no impide vender: siguen operand
 
 ---
 
-## 8. Pendientes a resolver antes de codificar
+## 8. Pendientes, ya resueltos
 
-1. **Vencimiento de cheques en cartera.** ¿Qué pasa si un cheque llega a su fecha de vencimiento sin haberse entregado? ¿Alerta, estado nuevo, se deposita?
-2. **Estado `acreditado`.** ¿La verdulería hace seguimiento de si el proveedor efectivamente cobró el cheque, o para ellos termina en `entregado`? Si no hacen seguimiento, el estado sobra.
-3. **Límite de crédito de clientes.** Sin POS no hay venta que bloquear, así que el límite solo puede ser una advertencia al cargar el fiado o un dato informativo. ¿Vale la pena tenerlo?
-4. **Turnos.** ¿Siempre son dos por día o puede haber más? ¿El turno queda atado a un usuario o a un horario?
-5. **Moneda y redondeo.** Definir decimales y política de redondeo en el cálculo de descuento — con porcentajes es donde aparecen las diferencias de centavos.
+Los cinco puntos que quedaron abiertos al escribir esta especificación. El dueño
+los resolvió el 13/08/2026 y quedan acá con su respuesta, porque el motivo de cada
+decisión vale más que la decisión sola.
+
+1. **Vencimiento de cheques en cartera.** ✅ No se modela. Los cheques nunca llegan a su fecha de vencimiento sin entregarse, así que no hay alerta ni estado de vencido. `fecha_vencimiento` se guarda igual: es lo que ordena la cartera.
+2. **Estado `acreditado`.** ✅ Sobra. Para la verdulería el cheque termina en `entregado`; no hacen seguimiento de si el proveedor lo cobró. Lo único que puede pasar después es que rebote, y para eso está `rechazado`.
+3. **Límite de crédito de clientes.** ✅ No hay límite: se fía por confianza. El campo `limite_credito` se eliminó en lugar de dejarlo sin uso.
+4. **Turnos.** ✅ Dos por día (mañana y tarde), salvo domingos y feriados, que llevan un turno único. El sistema lo **sugiere** y no lo impone: no conoce el calendario de feriados —cambia todos los años— así que un feriado se resuelve solo, con el operador abriendo el turno que corresponda. Un día atípico también tiene que poder registrarse.
+5. **Moneda y redondeo.** ✅ Pesos enteros, sin centavos, y el redondeo va siempre a favor de la verdulería. Detalle en §7.1.
+
+### 8.1 Rebote y reversión no son lo mismo
+
+Al implementar la reversión de entrega pareció que contradecía a §4.4. No lo hace:
+son respuestas a dos hechos distintos, y el dueño lo confirmó el 13/08/2026.
+
+| | Entrega mal cargada | Cheque que rebotó |
+|---|---|---|
+| ¿Ocurrió la entrega? | No. Se cargó por error. | Sí, de verdad. |
+| Qué se hace | Revertir (§4.3) | Registrar el rechazo (§4.4) |
+| Deuda con el proveedor | Vuelve a deberse | Queda saldada |
+| Quién pone la plata | Nadie: no pasó nada | Quien vendió el cheque |
+| Ahorro | Deja de estar realizado | Sigue realizado |
+
+Los dos flujos son mutuamente excluyentes por diseño: `rechazar` exige una entrega
+vigente y revertir la elimina, así que un cheque cuya entrega se revirtió no puede
+marcarse como rechazado. Es correcto — si esa entrega nunca ocurrió, no hay nada
+que pueda haber rebotado.

@@ -58,6 +58,63 @@ export async function chequeEnCarteraPorId(id: string) {
   });
 }
 
+export interface EntregaDelHistorial {
+  chequeId: string;
+  numero: string;
+  banco: string;
+  librador: string;
+  nominal: Decimal;
+  fechaEntrega: Date;
+  proveedor: string;
+  /** Las facturas que este cheque saldó, para saber qué vuelve a deberse si se revierte. */
+  facturas: { numero: string; montoImputado: Decimal }[];
+  /** Nominal que no se imputó a ninguna factura: quedó como saldo a favor. */
+  aCuenta: Decimal;
+}
+
+/**
+ * Entregas ya hechas, la más reciente primero (§4.3).
+ *
+ * Muestra a qué facturas fue cada cheque porque es lo que hay que mirar antes de
+ * revertir: al deshacer la entrega esas facturas vuelven a deberse, y el operador
+ * tiene que ver cuáles son antes de tocar el botón.
+ */
+export async function historialEntregas(limite = 50): Promise<EntregaDelHistorial[]> {
+  const cheques = await prisma.cheque.findMany({
+    where: { fechaEntrega: { not: null } },
+    include: {
+      proveedorDestino: true,
+      imputaciones: { include: { factura: true } },
+    },
+    orderBy: { fechaEntrega: "desc" },
+    take: limite,
+  });
+
+  return cheques.map((cheque) => {
+    const imputado = cheque.imputaciones.reduce<Decimal>(
+      (acc, i) => acc.plus(i.montoImputado),
+      CERO,
+    );
+
+    return {
+      chequeId: cheque.id,
+      numero: cheque.numero,
+      banco: cheque.banco,
+      librador: cheque.librador,
+      nominal: cheque.nominal,
+      // `fechaEntrega` no es null: el where lo garantiza, pero el tipo de Prisma
+      // no lo sabe.
+      fechaEntrega: cheque.fechaEntrega!,
+      proveedor: cheque.proveedorDestino?.nombre ?? "—",
+      facturas: cheque.imputaciones.map((i) => ({
+        numero: i.factura.numero,
+        montoImputado: i.montoImputado,
+      })),
+      aCuenta: cheque.nominal.minus(imputado),
+    };
+  });
+}
+
 export interface DatosEntrega {
   proveedor: { id: string; nombre: string; saldo: Decimal };
   facturas: {

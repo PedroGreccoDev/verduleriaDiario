@@ -8,6 +8,7 @@ import { normalizarMontoTexto, normalizarPorcentajeTexto } from "@/lib/monto-tex
 import { comprarCheque } from "@/domain/cheques/compra.service";
 import { entregarCheque } from "@/domain/cheques/entrega.service";
 import { rechazarCheque } from "@/domain/cheques/rechazo.service";
+import { revertirEntregaCheque } from "@/domain/cheques/reversion.service";
 import type { ImputacionSolicitada } from "@/domain/proveedores/imputacion";
 
 /**
@@ -26,7 +27,12 @@ export interface ResultadoAccion {
 function montoObligatorio(valor: string, campo: string) {
   const canonico = normalizarMontoTexto(valor);
   if (canonico === null) {
-    throw new ErrorDominio("MONTO_INVALIDO", `${campo}: "${valor}" no es un monto válido.`);
+    throw new ErrorDominio(
+      "MONTO_INVALIDO",
+      valor.includes(",")
+        ? `${campo}: "${valor}" tiene centavos. Los montos van en pesos enteros.`
+        : `${campo}: "${valor}" no es un monto válido.`,
+    );
   }
   return dec(canonico);
 }
@@ -49,6 +55,9 @@ async function ejecutar(
   }
 
   revalidatePath("/cheques");
+  // El historial vive en otra ruta y muestra las mismas entregas: revertir una
+  // tiene que sacarla de ahí, no solo devolver el cheque a la cartera.
+  revalidatePath("/cheques/entregas");
   return { ok: true };
 }
 
@@ -128,7 +137,12 @@ export async function accionEntregarCheque(
 
     const canonico = normalizarMontoTexto(texto);
     if (canonico === null) {
-      return { ok: false, mensaje: `"${texto}" no es un monto válido.` };
+      return {
+        ok: false,
+        mensaje: texto.includes(",")
+          ? `"${texto}" tiene centavos. Los montos van en pesos enteros.`
+          : `"${texto}" no es un monto válido.`,
+      };
     }
 
     const monto = dec(canonico);
@@ -158,4 +172,17 @@ export async function accionRechazarCheque(
   if (!motivo) return { ok: false, mensaje: "Escribí el motivo del rechazo." };
 
   return ejecutar(() => rechazarCheque({ chequeId, motivo }));
+}
+
+/**
+ * Deshace una entrega: el cheque vuelve a la cartera y las facturas que había
+ * saldado vuelven a deberse.
+ */
+export async function accionRevertirEntrega(
+  _previo: ResultadoAccion,
+  formulario: FormData,
+): Promise<ResultadoAccion> {
+  const chequeId = String(formulario.get("chequeId") ?? "");
+
+  return ejecutar(() => revertirEntregaCheque({ chequeId }));
 }

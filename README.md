@@ -101,15 +101,23 @@ reciba tráfico. Variables a cargar: las de `.env.example`.
 
 Usar entornos separados para staging y producción, con base propia cada uno.
 
-## Pendientes de §8
+## Pendientes de §8: resueltos
 
-Sin resolver, marcados como `TODO(§8.x)` donde corresponde:
+Los cinco quedaron cerrados el 13/08/2026. El detalle y el porqué de cada uno
+están en §8 de la especificación.
 
-1. Qué pasa con un cheque que vence en cartera sin entregarse.
-2. Si el estado `acreditado` hace falta o sobra.
-3. Si el límite de crédito de clientes bloquea, advierte o es informativo.
-4. Si los turnos son siempre dos por día, y si van atados a usuario o a horario.
-5. Política de redondeo definitiva. Hoy: half-up a 2 decimales, en `src/lib/decimal.ts`.
+1. **Vencimiento en cartera:** no se modela; los cheques nunca llegan a vencer sin entregarse.
+2. **Estado `acreditado`:** eliminado. El cheque termina en `entregado`.
+3. **Límite de crédito:** no hay. La columna `limite_credito` se eliminó.
+4. **Turnos:** dos por día, uno solo los domingos y feriados. El sistema lo sugiere, no lo impone.
+5. **Moneda y redondeo:** pesos enteros, sin centavos, y el monto pagado redondea **hacia abajo** — el resto queda a favor de la verdulería. En `src/lib/decimal.ts` y `AGENTS.md`.
+
+### Rebote ≠ reversión de entrega
+
+Se parecen y no lo son. **Revertir** (§4.3) es para una entrega que se cargó mal:
+nunca ocurrió, así que la deuda vuelve. **Rechazar** (§4.4) es para un cheque que
+rebotó: la entrega ocurrió de verdad, lo levanta quien vendió el cheque y no se
+toca ningún saldo. Son mutuamente excluyentes por diseño. Ver §8.1.
 
 Además, `usuario_id` está omitido de los modelos hasta que exista Better Auth. La
 migración que lo agregue tiene que ir nullable → backfill → NOT NULL + FK.

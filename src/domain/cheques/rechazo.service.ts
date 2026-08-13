@@ -42,8 +42,11 @@ export async function rechazarCheque(datos: DatosRechazoCheque) {
   }
 
   // Un cheque que sigue en cartera no puede rebotar: nadie lo depositó todavía.
-  // TODO(§8.1): si un cheque vence en cartera sin entregarse hace falta otro flujo,
-  //   que está sin definir. No es este.
+  //
+  // Esto también deja fuera a un cheque cuya entrega se revirtió, y está bien: si
+  // se revirtió la entrega es porque estaba mal cargada, así que esa entrega no
+  // ocurrió y no hay nada que pueda haber rebotado. El rebote de una entrega real
+  // se registra acá directamente, sin revertir nada (§4.4).
   if (!cheque.fechaEntrega) {
     throw errorDominio(
       "CHEQUE_NO_ENTREGADO",
