@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { dec } from "@/lib/decimal";
 import { ErrorDominio } from "@/lib/errores";
+import { normalizarMontoTexto } from "@/lib/monto-texto";
 import { abrirTurno, cerrarTurno } from "@/domain/caja/turno.service";
 import { registrarRetiroParcial } from "@/domain/caja/retiro.service";
 
@@ -28,18 +29,18 @@ const EXITO: ResultadoAccion = { ok: true };
 /**
  * Convierte lo que tipeó el operador en Decimal.
  *
- * Acepta coma como separador decimal, porque es lo que se escribe en Argentina, y
- * puntos de miles: "45.000,50" tiene que funcionar igual que "45000.50". Si esto
- * no estuviera, `dec("45.000,50")` explota y el operador no entiende por qué.
+ * La normalización vive en `@/lib/monto-texto` porque las pantallas del navegador
+ * usan exactamente la misma: el monto que se muestra para confirmar tiene que ser
+ * el que se guarda.
  */
 function montoDesdeFormulario(valor: string): ReturnType<typeof dec> {
-  const limpio = valor.trim().replace(/\./g, "").replace(",", ".");
+  const canonico = normalizarMontoTexto(valor);
 
-  if (limpio === "" || !/^-?\d+(\.\d+)?$/.test(limpio)) {
+  if (canonico === null) {
     throw new ErrorDominio("MONTO_INVALIDO", `"${valor}" no es un monto válido.`);
   }
 
-  return dec(limpio);
+  return dec(canonico);
 }
 
 /** Traduce los errores de dominio a un mensaje; deja pasar el resto. */

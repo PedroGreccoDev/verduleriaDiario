@@ -1,14 +1,25 @@
-import { dec, redondearMonto, type Decimal } from "@/lib/decimal";
+import { dec, type Decimal } from "@/lib/decimal";
 import { errorDominio } from "@/lib/errores";
+import { aEnteroEscalado, deEnteroEscalado } from "@/lib/monto-texto";
+import { calcularEnCentavos } from "./calculo-puro";
 
 /**
- * El operador tipea nominal y porcentaje; el sistema calcula el monto pagado y
- * lo muestra en pantalla para que lo verifique antes de confirmar (§4.2, §6).
+ * El operador tipea nominal y porcentaje; el sistema calcula el monto pagado y lo
+ * muestra en pantalla para que lo verifique antes de confirmar (§4.2, §6).
  *
- * Ejemplo del dueño: nominal $1.000 con 10% de descuento → se paga $900 y el
+ * Ejemplo del dueño: nominal $1.000 con 10 % de descuento → se paga $900 y el
  * ahorro es $100. Ese ahorro NO es plata que entra: es cancelar $1.000 de deuda
  * habiendo gastado $900 (§2.3).
+ *
+ * La cuenta en sí vive en `calculo-puro.ts`, en aritmética entera. Acá solo se
+ * valida y se traduce a Decimal. Es la MISMA cuenta que hace el navegador para el
+ * preview, y eso es a propósito: si fueran dos implementaciones, la pantalla de
+ * confirmación podría mostrar un monto y guardarse otro.
  */
+
+const ESCALA_MONTO = 2;
+const ESCALA_PORCENTAJE = 2;
+
 export interface CalculoCheque {
   nominal: Decimal;
   porcentajeDescuento: Decimal;
@@ -16,13 +27,16 @@ export interface CalculoCheque {
   ahorro: Decimal;
 }
 
-export function calcularCheque(nominal: Decimal, porcentajeDescuento: Decimal): CalculoCheque {
+export function calcularCheque(
+  nominal: Decimal,
+  porcentajeDescuento: Decimal,
+): CalculoCheque {
   if (!nominal.greaterThan(0)) {
     throw errorDominio("MONTO_INVALIDO", "El nominal del cheque tiene que ser mayor a cero.");
   }
 
-  // 100% de descuento significaría un cheque regalado: no es un descuento, es otra
-  // cosa, y dejaría monto_pagado en cero. Se rechaza igual que un porcentaje absurdo.
+  // 100 % de descuento significaría un cheque regalado: no es un descuento, y
+  // dejaría monto_pagado en cero. Se rechaza igual que un porcentaje absurdo.
   if (porcentajeDescuento.isNegative() || porcentajeDescuento.greaterThanOrEqualTo(100)) {
     throw errorDominio(
       "PORCENTAJE_INVALIDO",
@@ -30,23 +44,23 @@ export function calcularCheque(nominal: Decimal, porcentajeDescuento: Decimal): 
     );
   }
 
-  const montoPagado = redondearMonto(
-    nominal.mul(dec(1).minus(porcentajeDescuento.div(100))),
+  const calculo = calcularEnCentavos(
+    aEnteroEscalado(nominal.toFixed(ESCALA_MONTO), ESCALA_MONTO),
+    aEnteroEscalado(porcentajeDescuento.toFixed(ESCALA_PORCENTAJE), ESCALA_PORCENTAJE),
   );
 
-  // El ahorro se deriva del monto pagado YA REDONDEADO, no de la fórmula original.
-  // Si se calculara aparte, con ciertos porcentajes ahorro + pagado no daría el
-  // nominal por un centavo, y el CHECK `ahorro = nominal - monto_pagado` lo
-  // rechazaría. Además, un reporte donde las columnas no cierran es indefendible.
-  const ahorro = nominal.minus(montoPagado);
-
-  return { nominal, porcentajeDescuento, montoPagado, ahorro };
+  return {
+    nominal,
+    porcentajeDescuento,
+    montoPagado: dec(deEnteroEscalado(calculo.montoPagado, ESCALA_MONTO)),
+    ahorro: dec(deEnteroEscalado(calculo.ahorro, ESCALA_MONTO)),
+  };
 }
 
-/**
- * Para la pantalla de confirmación de §4.2, antes de que exista el cheque.
- * No toca la base.
- */
-export function previsualizarCompra(nominal: Decimal, porcentajeDescuento: Decimal): CalculoCheque {
+/** Para la pantalla de confirmación de §4.2, antes de que exista el cheque. */
+export function previsualizarCompra(
+  nominal: Decimal,
+  porcentajeDescuento: Decimal,
+): CalculoCheque {
   return calcularCheque(nominal, porcentajeDescuento);
 }
