@@ -99,11 +99,11 @@ export default async function PaginaEntregarCheque(
               <FormularioEntrega
                 chequeId={cheque.id}
                 proveedorId={datos.proveedor.id}
-                nominal={cheque.nominal.toFixed(2)}
+                nominal={cheque.nominal.toFixed(0)}
                 facturas={datos.facturas.map((factura) => ({
                   id: factura.id,
                   numero: factura.numero,
-                  saldoPendiente: factura.saldoPendiente.toFixed(2),
+                  saldoPendiente: factura.saldoPendiente.toFixed(0),
                   vencimiento: factura.fechaVencimiento
                     ? FECHA_CORTA.format(factura.fechaVencimiento)
                     : null,

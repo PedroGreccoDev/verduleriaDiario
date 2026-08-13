@@ -30,7 +30,7 @@ describe("cálculo", () => {
 
   it("ahorro + pagado siempre da el nominal, aun con porcentajes feos", () => {
     for (const porcentaje of ["7.35", "12.5", "3.33", "17.77", "0.01"]) {
-      const nominal = dec("847532.19");
+      const nominal = dec("847532");
       const calculo = previsualizarCompra(nominal, dec(porcentaje));
 
       expect(calculo.montoPagado.plus(calculo.ahorro).toString()).toBe(nominal.toString());

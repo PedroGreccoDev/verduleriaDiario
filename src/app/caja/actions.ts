@@ -37,7 +37,15 @@ function montoDesdeFormulario(valor: string): ReturnType<typeof dec> {
   const canonico = normalizarMontoTexto(valor);
 
   if (canonico === null) {
-    throw new ErrorDominio("MONTO_INVALIDO", `"${valor}" no es un monto válido.`);
+    // Se distingue el caso de los centavos porque es el error que el operador va a
+    // cometer de verdad: "45.000,50" se ve como un monto perfectamente válido, y
+    // sin este mensaje no tendría forma de saber qué le molestó al sistema.
+    throw new ErrorDominio(
+      "MONTO_INVALIDO",
+      valor.includes(",")
+        ? `"${valor}" tiene centavos. Los montos van en pesos enteros.`
+        : `"${valor}" no es un monto válido.`,
+    );
   }
 
   return dec(canonico);

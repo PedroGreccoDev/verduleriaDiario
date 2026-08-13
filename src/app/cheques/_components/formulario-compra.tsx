@@ -54,7 +54,7 @@ export function FormularioCompra({
           <Input
             id="nominal"
             name="nominal"
-            inputMode="decimal"
+            inputMode="numeric"
             placeholder="1.000.000"
             autoComplete="off"
             required

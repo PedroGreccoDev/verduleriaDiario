@@ -87,7 +87,7 @@ describe("retiros", () => {
     const turno = await abrirTurno({ nombre: "mañana" });
 
     await registrarRetiroParcial({ turnoId: turno.id, monto: dec("30000") });
-    await registrarRetiroParcial({ turnoId: turno.id, monto: dec("25500.50") });
+    await registrarRetiroParcial({ turnoId: turno.id, monto: dec("25500") });
     await registrarRetiroParcial({ turnoId: turno.id, monto: dec("12000") });
 
     const movimientos = await movimientosDeCaja();
@@ -97,7 +97,7 @@ describe("retiros", () => {
       where: { turnoId: turno.id },
       _sum: { monto: true },
     });
-    expect(_sum.monto?.toString()).toBe("67500.5");
+    expect(_sum.monto?.toString()).toBe("67500");
   });
 
   it("suma el retiro de cierre a los parciales previos", async () => {

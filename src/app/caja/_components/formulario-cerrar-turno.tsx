@@ -21,7 +21,7 @@ export function FormularioCerrarTurno({ turnoId }: { turnoId: string }) {
         <Input
           id="monto-cierre"
           name="monto"
-          inputMode="decimal"
+          inputMode="numeric"
           placeholder="Dejalo vacío si ya retiraste todo"
           autoComplete="off"
           disabled={pendiente}

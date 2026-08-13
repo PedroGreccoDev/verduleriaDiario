@@ -32,14 +32,9 @@ export async function registrarCargoCliente(datos: DatosCargoCliente) {
     const cliente = await obtenerCliente(tx, datos.clienteId);
     const saldoResultante = cliente.saldo.plus(datos.monto);
 
-    // TODO(§8.3): el límite de crédito está sin definir. Sin POS no hay venta que
-    //   bloquear, así que solo puede ser una advertencia al cargar el fiado o un
-    //   dato informativo. Por ahora no bloquea nada: se calcula el excedente y se
-    //   devuelve para que la UI decida si avisa.
-    const limite = cliente.limiteCredito;
-    const excedeLimite =
-      limite !== null && limite.greaterThan(0) && saldoResultante.greaterThan(limite);
-
+    // §8.3 resuelto: no hay límite de crédito. El dueño fía por confianza y sin
+    // POS no había nada que bloquear, así que un límite solo habría sido un campo
+    // más para llenar en el alta y una advertencia que nadie iba a mirar.
     const movimiento = await tx.movimientoCuentaCorriente.create({
       data: {
         clienteId: cliente.id,
@@ -57,7 +52,7 @@ export async function registrarCargoCliente(datos: DatosCargoCliente) {
       data: { saldo: saldoResultante },
     });
 
-    return { movimiento, cliente: clienteActualizado, excedeLimite };
+    return { movimiento, cliente: clienteActualizado };
   });
 }
 

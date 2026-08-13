@@ -2,7 +2,10 @@
 // Modelo de datos según §3 de especificacion-modulo-diario.md
 //
 // Reglas que atraviesan todo el schema:
-//   - Todo monto es Decimal @db.Decimal(14,2) → NUMERIC en Postgres. Nunca Float (§7.1).
+//   - Todo monto es Decimal @db.Decimal(14,0) → NUMERIC en Postgres. Nunca Float (§7.1).
+//     Escala CERO: la moneda es el peso argentino y no se usan centavos (AGENTS.md).
+//     La escala la impone la base, así que un centavo no entra ni por error de código.
+//     El único campo con decimales es porcentaje_descuento, que no es un monto.
 //   - Bolsa Grande (efectivo) y cartera de cheques (nominal) son saldos separados (§2.1).
 //     La cartera no tiene tabla propia: es el conjunto de cheques con estado = en_cartera.
 //   - El ahorro por cheques no vive en movimiento_caja. Se deriva de los cheques
@@ -105,7 +108,7 @@ model MovimientoCaja {
 
   /// Siempre positivo. El signo lo da `tipo` (§3.1).
   /// Hay un CHECK (monto > 0) en la migración.
-  monto Decimal @db.Decimal(14, 2)
+  monto Decimal @db.Decimal(14, 0)
 
   referenciaTipo ReferenciaMovimientoCaja @map("referencia_tipo")
   /// FK polimórfica, sin constraint de integridad referencial.
@@ -124,12 +127,12 @@ model MovimientoCaja {
 // §3.2 Cheques
 // ---------------------------------------------------------------------------
 
+/// §8.2 resuelto: NO existe `acreditado`. La verdulería no hace seguimiento de si
+/// el proveedor cobró el cheque; para ellos termina en `entregado`. Lo único que
+/// puede pasar después es que rebote, y para eso está `rechazado`.
 enum EstadoCheque {
   en_cartera
   entregado
-  /// TODO(§8.2): sin resolver si la verdulería hace seguimiento de que el proveedor
-  /// haya cobrado el cheque. Si no lo hace, este estado sobra y hay que sacarlo.
-  acreditado
   rechazado
 }
 
@@ -153,19 +156,21 @@ model Cheque {
   librador String
 
   /// Valor de cara del cheque. Es lo que entra a la cartera y lo que cancela deuda.
-  nominal             Decimal @db.Decimal(14, 2)
+  nominal             Decimal @db.Decimal(14, 0)
   /// Lo que tipea el operador, en puntos porcentuales (12.5 = 12,5 %).
   porcentajeDescuento Decimal @map("porcentaje_descuento") @db.Decimal(5, 2)
-  /// Calculado: nominal × (1 − porcentaje/100), redondeado a 2 decimales half-up.
+  /// Calculado: nominal × (1 − porcentaje/100), redondeado HACIA ABAJO al peso.
+  /// El resto queda a favor de la verdulería, que paga de menos (AGENTS.md).
   /// Es el efectivo que sale de la Bolsa Grande al comprarlo.
-  montoPagado         Decimal @map("monto_pagado") @db.Decimal(14, 2)
+  montoPagado         Decimal @map("monto_pagado") @db.Decimal(14, 0)
   /// Calculado: nominal − monto_pagado. Se guarda (y no se recalcula) para que los
   /// históricos no cambien si cambia la política de redondeo (§3.2).
   /// Latente hasta la entrega: acá no significa que el ahorro esté realizado (§2.3).
-  ahorro              Decimal @db.Decimal(14, 2)
+  ahorro              Decimal @db.Decimal(14, 0)
 
   fechaCompra      DateTime @default(now()) @map("fecha_compra")
-  /// TODO(§8.1): sin resolver qué pasa con un cheque que vence en cartera sin entregarse.
+  /// §8.1 resuelto: los cheques nunca llegan al vencimiento en cartera, así que no
+  /// hay alerta ni estado de vencido. La fecha se guarda porque ordena la cartera.
   fechaVencimiento DateTime @map("fecha_vencimiento") @db.Date
 
   vendedorChequeId String         @map("vendedor_cheque_id")
@@ -209,7 +214,7 @@ model ImputacionCheque {
   facturaProveedorId String           @map("factura_proveedor_id")
   factura            FacturaProveedor @relation(fields: [facturaProveedorId], references: [id], onDelete: Restrict)
 
-  montoImputado Decimal @map("monto_imputado") @db.Decimal(14, 2)
+  montoImputado Decimal @map("monto_imputado") @db.Decimal(14, 0)
 
   @@unique([chequeId, facturaProveedorId])
   @@index([facturaProveedorId])
@@ -240,7 +245,7 @@ model Proveedor {
   /// Positivo = se le debe. NEGATIVO = saldo a favor, por diseño (§3.3).
   /// El excedente de un cheque cuyo nominal supera la deuda imputada cae acá y se
   /// descuenta de la próxima factura. No hay rama especial para ese caso.
-  saldo Decimal @default(0) @db.Decimal(14, 2)
+  saldo Decimal @default(0) @db.Decimal(14, 0)
 
   activo Boolean @default(true)
 
@@ -262,10 +267,10 @@ model FacturaProveedor {
   fecha            DateTime  @db.Date
   fechaVencimiento DateTime? @map("fecha_vencimiento") @db.Date
 
-  montoTotal     Decimal       @map("monto_total") @db.Decimal(14, 2)
+  montoTotal     Decimal       @map("monto_total") @db.Decimal(14, 0)
   /// Nunca negativo: el excedente de un pago no se acumula acá sino en proveedor.saldo.
   /// Hay un CHECK (saldo_pendiente >= 0) en la migración.
-  saldoPendiente Decimal       @map("saldo_pendiente") @db.Decimal(14, 2)
+  saldoPendiente Decimal       @map("saldo_pendiente") @db.Decimal(14, 0)
   estado         EstadoFactura @default(pendiente)
 
   imputacionesCheque ImputacionCheque[]
@@ -290,7 +295,7 @@ model PagoProveedor {
 
   fecha DateTime  @default(now())
   medio MedioPago
-  monto Decimal   @db.Decimal(14, 2)
+  monto Decimal   @db.Decimal(14, 0)
 
   /// Solo cuando medio = cheque. Hay un CHECK en la migración que lo exige
   /// y que lo prohíbe para los otros medios.
@@ -320,7 +325,7 @@ model ImputacionPago {
   facturaProveedorId String           @map("factura_proveedor_id")
   factura            FacturaProveedor @relation(fields: [facturaProveedorId], references: [id], onDelete: Restrict)
 
-  montoImputado Decimal @map("monto_imputado") @db.Decimal(14, 2)
+  montoImputado Decimal @map("monto_imputado") @db.Decimal(14, 0)
 
   @@unique([pagoProveedorId, facturaProveedorId])
   @@index([facturaProveedorId])
@@ -350,13 +355,11 @@ model Cliente {
   nombre   String
   telefono String?
 
-  /// TODO(§8.3): sin POS no hay venta que bloquear. Sin resolver si el límite es
-  /// una advertencia al cargar el fiado o solo un dato informativo.
-  /// 0 o null = sin límite.
-  limiteCredito Decimal? @map("limite_credito") @db.Decimal(14, 2)
+  /// §8.3 resuelto: NO hay límite de crédito. El campo se eliminó en vez de
+  /// dejarlo sin uso; si algún día hace falta, se agrega con la decisión tomada.
 
   /// Positivo = debe.
-  saldo  Decimal @default(0) @db.Decimal(14, 2)
+  saldo  Decimal @default(0) @db.Decimal(14, 0)
   activo Boolean @default(true)
 
   movimientos MovimientoCuentaCorriente[]
@@ -374,11 +377,11 @@ model MovimientoCuentaCorriente {
 
   fecha DateTime                      @default(now())
   tipo  TipoMovimientoCuentaCorriente
-  monto Decimal                       @db.Decimal(14, 2)
+  monto Decimal                       @db.Decimal(14, 0)
 
   /// Snapshot del saldo del cliente después de aplicar este movimiento. Permite
   /// reconstruir el estado de cuenta a cualquier fecha sin recalcular la historia (§3.4).
-  saldoResultante Decimal @map("saldo_resultante") @db.Decimal(14, 2)
+  saldoResultante Decimal @map("saldo_resultante") @db.Decimal(14, 0)
 
   referenciaTipo ReferenciaCuentaCorriente @default(manual) @map("referencia_tipo")
   referenciaId   String?                   @map("referencia_id")

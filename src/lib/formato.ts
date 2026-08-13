@@ -1,19 +1,19 @@
-import type { Decimal } from "./decimal";
+import { ESCALA_MONTO, type Decimal } from "./decimal";
 
 /**
  * Formateo de montos para pantalla, en formato argentino: punto para los miles y
- * coma para los decimales.
+ * sin parte decimal, porque la moneda no tiene centavos (AGENTS.md).
  *
  * Se arma a partir del string del Decimal y no convirtiendo a `number`. Pasar por
  * `Number` reintroduciría el punto flotante justo en el borde donde §7.1 dice que
- * no lo usemos — con montos grandes empezaría a redondear mal el último centavo.
+ * no lo usemos — con montos grandes empezaría a redondear mal el último peso.
  */
 export function formatearPesos(monto: Decimal): string {
   const negativo = monto.isNegative();
-  const [enteros, decimales] = monto.abs().toFixed(2).split(".");
+  const enteros = monto.abs().toFixed(ESCALA_MONTO);
   const conMiles = enteros.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
-  return `${negativo ? "-" : ""}$ ${conMiles},${decimales}`;
+  return `${negativo ? "-" : ""}$ ${conMiles}`;
 }
 
 const HORA = new Intl.DateTimeFormat("es-AR", {

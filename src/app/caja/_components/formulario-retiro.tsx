@@ -32,8 +32,8 @@ export function FormularioRetiro({ turnoId }: { turnoId: string }) {
           <Input
             id="monto"
             name="monto"
-            inputMode="decimal"
-            placeholder="45.000,50"
+            inputMode="numeric"
+            placeholder="45.000"
             autoComplete="off"
             required
             disabled={pendiente}

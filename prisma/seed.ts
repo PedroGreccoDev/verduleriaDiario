@@ -326,16 +326,16 @@ async function main() {
   console.log("Clientes y cuenta corriente…");
 
   const clientes = [
-    { nombre: "Rotisería Doña Marta", telefono: "11 4422-9911", limite: "300000" },
-    { nombre: "Restaurante La Esquina", telefono: "11 4788-3322", limite: "500000" },
-    { nombre: "Comedor Escolar N° 12", telefono: "11 4900-1234", limite: null },
-    { nombre: "Rosa Giménez", telefono: "11 6055-4488", limite: "50000" },
-    { nombre: "Carlos Pereyra", telefono: "11 3344-7788", limite: "50000" },
-    { nombre: "Pizzería Nápoli", telefono: "11 4123-5566", limite: "250000" },
-    { nombre: "Silvia Ledesma", telefono: null, limite: "40000" },
-    { nombre: "Bar El Progreso", telefono: "11 4566-2200", limite: "200000" },
-    { nombre: "Marta Ríos", telefono: "11 6788-1100", limite: null },
-    { nombre: "Kiosco Los Pinos", telefono: "11 4011-9922", limite: "80000" },
+    { nombre: "Rotisería Doña Marta", telefono: "11 4422-9911" },
+    { nombre: "Restaurante La Esquina", telefono: "11 4788-3322" },
+    { nombre: "Comedor Escolar N° 12", telefono: "11 4900-1234" },
+    { nombre: "Rosa Giménez", telefono: "11 6055-4488" },
+    { nombre: "Carlos Pereyra", telefono: "11 3344-7788" },
+    { nombre: "Pizzería Nápoli", telefono: "11 4123-5566" },
+    { nombre: "Silvia Ledesma", telefono: null },
+    { nombre: "Bar El Progreso", telefono: "11 4566-2200" },
+    { nombre: "Marta Ríos", telefono: "11 6788-1100" },
+    { nombre: "Kiosco Los Pinos", telefono: "11 4011-9922" },
   ];
 
   const turno13 = await abrirTurno({ nombre: "mañana", fecha: fecha(13) });
@@ -345,7 +345,6 @@ async function main() {
       data: {
         nombre: datos.nombre,
         telefono: datos.telefono,
-        limiteCredito: datos.limite ? dec(datos.limite) : null,
       },
     });
 
@@ -399,18 +398,18 @@ async function resumen() {
 
   console.log("\n─── Resumen ───────────────────────────────────");
   console.log("Bolsa Grande (§5.1, solo efectivo)");
-  console.log(`  Ingresos:  ${ingresos.toFixed(2)}`);
-  console.log(`  Egresos:   ${egresos.toFixed(2)}`);
-  console.log(`  Neto:      ${ingresos.minus(egresos).toFixed(2)}`);
+  console.log(`  Ingresos:  ${ingresos.toFixed(0)}`);
+  console.log(`  Egresos:   ${egresos.toFixed(0)}`);
+  console.log(`  Neto:      ${ingresos.minus(egresos).toFixed(0)}`);
   console.log("\nCartera de cheques (§5.2, a nominal — NO se suma a la Bolsa Grande)");
-  console.log(`  ${cartera._count} cheques por ${(cartera._sum.nominal ?? dec(0)).toFixed(2)}`);
+  console.log(`  ${cartera._count} cheques por ${(cartera._sum.nominal ?? dec(0)).toFixed(0)}`);
   console.log("\nAhorro realizado (no es un ingreso)");
-  console.log(`  ${entregados._count} entregados, ahorro ${(entregados._sum.ahorro ?? dec(0)).toFixed(2)}`);
+  console.log(`  ${entregados._count} entregados, ahorro ${(entregados._sum.ahorro ?? dec(0)).toFixed(0)}`);
   console.log("\nSaldos de proveedores (negativo = saldo a favor)");
   for (const p of proveedores) {
-    console.log(`  ${p.nombre.padEnd(32)} ${p.saldo.toFixed(2)}`);
+    console.log(`  ${p.nombre.padEnd(32)} ${p.saldo.toFixed(0)}`);
   }
-  console.log(`\nClientes: ${clientes._count}, deuda total ${(clientes._sum.saldo ?? dec(0)).toFixed(2)}`);
+  console.log(`\nClientes: ${clientes._count}, deuda total ${(clientes._sum.saldo ?? dec(0)).toFixed(0)}`);
   console.log("───────────────────────────────────────────────\n");
 }
 

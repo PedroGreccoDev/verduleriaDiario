@@ -20,10 +20,8 @@ export async function crearVendedor(nombre = "Cheques del Sur") {
   return prisma.vendedorCheque.create({ data: { nombre } });
 }
 
-export async function crearCliente(nombre = "Rosa Giménez", limiteCredito?: string) {
-  return prisma.cliente.create({
-    data: { nombre, limiteCredito: limiteCredito ? dec(limiteCredito) : null },
-  });
+export async function crearCliente(nombre = "Rosa Giménez") {
+  return prisma.cliente.create({ data: { nombre } });
 }
 
 /** Factura pasando por el servicio, para que el saldo del proveedor quede bien. */

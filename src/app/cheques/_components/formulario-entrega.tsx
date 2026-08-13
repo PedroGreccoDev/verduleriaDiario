@@ -29,9 +29,9 @@ export interface FacturaParaImputar {
  * saldo a favor del proveedor— pero tiene que ser una decisión, no una sorpresa.
  * Por eso el total imputado y el remanente se recalculan mientras tipea.
  *
- * Los totales van en enteros (centavos), igual que el cálculo del cheque: sumar
- * con punto flotante haría que "lo que falta imputar" mostrara 0,01 cuando en
- * realidad es 0.
+ * Los totales van en enteros (pesos), igual que el cálculo del cheque: sumar con
+ * punto flotante haría que "lo que falta imputar" mostrara $1 cuando en realidad
+ * es 0.
  */
 export function FormularioEntrega({
   chequeId,
@@ -41,16 +41,16 @@ export function FormularioEntrega({
 }: {
   chequeId: string;
   proveedorId: string;
-  /** Canónico, ej. "1200000.00". */
+  /** Canónico, ej. "1200000". */
   nominal: string;
   facturas: FacturaParaImputar[];
 }) {
   const [resultado, accion, pendiente] = useActionState(accionEntregarCheque, INICIAL);
   const [montos, setMontos] = useState<Record<string, string>>({});
 
-  const nominalCentavos = aEnteroEscalado(nominal, 2);
+  const nominalPesos = aEnteroEscalado(nominal, 0);
 
-  let imputadoCentavos = 0n;
+  let imputadoPesos = 0n;
   let hayInvalido = false;
 
   for (const factura of facturas) {
@@ -62,11 +62,11 @@ export function FormularioEntrega({
       hayInvalido = true;
       continue;
     }
-    imputadoCentavos += aEnteroEscalado(canonico, 2);
+    imputadoPesos += aEnteroEscalado(canonico, 0);
   }
 
-  const remanenteCentavos = nominalCentavos - imputadoCentavos;
-  const superaNominal = remanenteCentavos < 0n;
+  const remanentePesos = nominalPesos - imputadoPesos;
+  const superaNominal = remanentePesos < 0n;
 
   function completarSaldo(factura: FacturaParaImputar) {
     setMontos((previos) => ({ ...previos, [factura.id]: factura.saldoPendiente }));
@@ -96,8 +96,8 @@ export function FormularioEntrega({
               <div className="flex items-center gap-2">
                 <Input
                   name={`imputacion:${factura.id}`}
-                  inputMode="decimal"
-                  placeholder="0,00"
+                  inputMode="numeric"
+                  placeholder="0"
                   autoComplete="off"
                   disabled={pendiente}
                   className="w-40"
@@ -125,16 +125,16 @@ export function FormularioEntrega({
         <Fila etiqueta="Nominal del cheque" valor={formatearCanonico(nominal)} />
         <Fila
           etiqueta="Imputado a facturas"
-          valor={formatearCanonico(deEnteroEscalado(imputadoCentavos, 2))}
+          valor={formatearCanonico(deEnteroEscalado(imputadoPesos, 0))}
         />
         <div className="border-t pt-2">
           {superaNominal ? (
             <p className="text-sm text-destructive">
               Estás imputando{" "}
-              {formatearCanonico(deEnteroEscalado(-remanenteCentavos, 2))} más que el
+              {formatearCanonico(deEnteroEscalado(-remanentePesos, 0))} más que el
               valor del cheque. No se puede.
             </p>
-          ) : remanenteCentavos === 0n ? (
+          ) : remanentePesos === 0n ? (
             <p className="text-sm text-muted-foreground">
               El cheque cubre exactamente las facturas imputadas.
             </p>
@@ -142,7 +142,7 @@ export function FormularioEntrega({
             <p className="text-sm">
               Quedan{" "}
               <strong className="tabular-nums">
-                {formatearCanonico(deEnteroEscalado(remanenteCentavos, 2))}
+                {formatearCanonico(deEnteroEscalado(remanentePesos, 0))}
               </strong>{" "}
               como saldo a favor del proveedor, que se descuentan solos de su
               próxima factura.

@@ -36,20 +36,26 @@ const chequeBase = {
 describe("Decimal", () => {
   it("guarda y devuelve Decimal, no punto flotante (§7.1)", async () => {
     const p = await prisma.proveedor.create({
-      data: { nombre: "Decimal", saldo: dec("1234567.89") },
+      data: { nombre: "Decimal", saldo: dec("1234567") },
     });
     const leido = await prisma.proveedor.findUniqueOrThrow({ where: { id: p.id } });
 
     expect(Prisma.Decimal.isDecimal(leido.saldo)).toBe(true);
-    expect(leido.saldo.toString()).toBe("1234567.89");
+    expect(leido.saldo.toString()).toBe("1234567");
   });
 
-  it("no pierde centavos en el cálculo de descuento por porcentaje", async () => {
-    // 0.1 + 0.2 en Float da 0.30000000000000004. Con Decimal tiene que dar 0.3.
-    const nominal = dec("33333.33");
-    const pagado = nominal.mul(dec("1").minus(dec("12.5").div(100)));
+  it("la base guarda pesos enteros: los centavos no entran ni por error", async () => {
+    // NUMERIC(14,0) es la última barrera. Si un centavo llegara hasta acá —por un
+    // camino de código que se saltee las validaciones—, Postgres lo redondea al
+    // guardarlo y la app se enteraría recién al leer. Este test fija ese
+    // comportamiento para que nadie lo confunda con "se guardó tal cual".
+    const p = await prisma.proveedor.create({
+      data: { nombre: "Sin centavos", saldo: dec("1000.75") },
+    });
+    const leido = await prisma.proveedor.findUniqueOrThrow({ where: { id: p.id } });
 
-    expect(pagado.toDecimalPlaces(2).toString()).toBe("29166.66");
+    expect(leido.saldo.toString()).toBe("1001");
+    expect(leido.saldo.decimalPlaces()).toBe(0);
   });
 });
 
@@ -243,10 +249,10 @@ describe("factura_proveedor", () => {
 describe("proveedor", () => {
   it("admite saldo negativo: es saldo a favor, no un error (§3.3)", async () => {
     const proveedor = await prisma.proveedor.create({
-      data: { nombre: "Con saldo a favor", saldo: dec("-15000.50") },
+      data: { nombre: "Con saldo a favor", saldo: dec("-15000") },
     });
 
-    expect(proveedor.saldo.toString()).toBe("-15000.5");
+    expect(proveedor.saldo.toString()).toBe("-15000");
     expect(proveedor.saldo.isNegative()).toBe(true);
   });
 });

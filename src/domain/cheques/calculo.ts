@@ -1,7 +1,7 @@
-import { dec, type Decimal } from "@/lib/decimal";
+import { dec, ESCALA_MONTO, type Decimal } from "@/lib/decimal";
 import { errorDominio } from "@/lib/errores";
 import { aEnteroEscalado, deEnteroEscalado } from "@/lib/monto-texto";
-import { calcularEnCentavos } from "./calculo-puro";
+import { calcularEnPesos } from "./calculo-puro";
 
 /**
  * El operador tipea nominal y porcentaje; el sistema calcula el monto pagado y lo
@@ -17,7 +17,6 @@ import { calcularEnCentavos } from "./calculo-puro";
  * confirmación podría mostrar un monto y guardarse otro.
  */
 
-const ESCALA_MONTO = 2;
 const ESCALA_PORCENTAJE = 2;
 
 export interface CalculoCheque {
@@ -35,6 +34,16 @@ export function calcularCheque(
     throw errorDominio("MONTO_INVALIDO", "El nominal del cheque tiene que ser mayor a cero.");
   }
 
+  // Se rechaza en vez de truncar. Un nominal con centavos significa que algo aguas
+  // arriba dejó pasar un decimal, y quedarse con la parte entera lo taparía: el
+  // cheque se guardaría por un monto distinto del que está escrito en el papel.
+  if (!nominal.isInteger()) {
+    throw errorDominio(
+      "MONTO_INVALIDO",
+      `El nominal va en pesos enteros, sin centavos; se recibió ${nominal.toString()}.`,
+    );
+  }
+
   // 100 % de descuento significaría un cheque regalado: no es un descuento, y
   // dejaría monto_pagado en cero. Se rechaza igual que un porcentaje absurdo.
   if (porcentajeDescuento.isNegative() || porcentajeDescuento.greaterThanOrEqualTo(100)) {
@@ -44,10 +53,22 @@ export function calcularCheque(
     );
   }
 
-  const calculo = calcularEnCentavos(
+  const calculo = calcularEnPesos(
     aEnteroEscalado(nominal.toFixed(ESCALA_MONTO), ESCALA_MONTO),
     aEnteroEscalado(porcentajeDescuento.toFixed(ESCALA_PORCENTAJE), ESCALA_PORCENTAJE),
   );
+
+  // Sin centavos, un nominal chico con un descuento grande puede dar cero: $10 al
+  // 95 % son $0,50, y el piso lo deja en $0. Un cheque que no se pagó no es una
+  // compra, y el CHECK `monto_pagado > 0` de la base lo rechazaría con un error
+  // que el operador no podría interpretar. Mejor frenarlo acá y explicarlo.
+  if (calculo.montoPagado <= 0n) {
+    throw errorDominio(
+      "MONTO_INVALIDO",
+      `Un nominal de ${nominal.toString()} al ${porcentajeDescuento.toString()} % da menos de $1. ` +
+        "Revisá el nominal o el descuento.",
+    );
+  }
 
   return {
     nominal,
