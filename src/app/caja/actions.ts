@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { dec } from "@/lib/decimal";
 import { ErrorDominio } from "@/lib/errores";
-import { normalizarMontoTexto } from "@/lib/monto-texto";
+import { montoDeFormulario } from "@/lib/formulario-monto";
 import { abrirTurno, cerrarTurno } from "@/domain/caja/turno.service";
 import { registrarRetiroParcial } from "@/domain/caja/retiro.service";
 
@@ -25,31 +24,6 @@ export interface ResultadoAccion {
 }
 
 const EXITO: ResultadoAccion = { ok: true };
-
-/**
- * Convierte lo que tipeó el operador en Decimal.
- *
- * La normalización vive en `@/lib/monto-texto` porque las pantallas del navegador
- * usan exactamente la misma: el monto que se muestra para confirmar tiene que ser
- * el que se guarda.
- */
-function montoDesdeFormulario(valor: string): ReturnType<typeof dec> {
-  const canonico = normalizarMontoTexto(valor);
-
-  if (canonico === null) {
-    // Se distingue el caso de los centavos porque es el error que el operador va a
-    // cometer de verdad: "45.000,50" se ve como un monto perfectamente válido, y
-    // sin este mensaje no tendría forma de saber qué le molestó al sistema.
-    throw new ErrorDominio(
-      "MONTO_INVALIDO",
-      valor.includes(",")
-        ? `"${valor}" tiene centavos. Los montos van en pesos enteros.`
-        : `"${valor}" no es un monto válido.`,
-    );
-  }
-
-  return dec(canonico);
-}
 
 /** Traduce los errores de dominio a un mensaje; deja pasar el resto. */
 async function ejecutar(accion: () => Promise<unknown>): Promise<ResultadoAccion> {
@@ -92,7 +66,7 @@ export async function accionRegistrarRetiro(
   return ejecutar(() =>
     registrarRetiroParcial({
       turnoId,
-      monto: montoDesdeFormulario(String(formulario.get("monto") ?? "")),
+      monto: montoDeFormulario(String(formulario.get("monto") ?? "")),
       observacion: observacion || "Retiro parcial",
     }),
   );
@@ -109,7 +83,7 @@ export async function accionCerrarTurno(
     cerrarTurno({
       turnoId,
       // Vacío significa cerrar sin retiro: puede haberse retirado todo antes.
-      montoRetiro: montoTexto ? montoDesdeFormulario(montoTexto) : null,
+      montoRetiro: montoTexto ? montoDeFormulario(montoTexto) : null,
     }),
   );
 }
