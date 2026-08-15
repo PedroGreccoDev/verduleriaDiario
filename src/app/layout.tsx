@@ -36,6 +36,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/proveedores" className="rounded-md px-3 py-1.5 hover:bg-accent">
               Proveedores
             </Link>
+            <Link href="/clientes" className="rounded-md px-3 py-1.5 hover:bg-accent">
+              Clientes
+            </Link>
             <Link href="/reportes" className="rounded-md px-3 py-1.5 hover:bg-accent">
               Reportes
             </Link>
