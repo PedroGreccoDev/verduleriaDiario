@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { proveedoresConDeuda } from "@/domain/proveedores/consultas";
-import { CERO } from "@/lib/decimal";
+import { CERO, esPositivo } from "@/lib/decimal";
 import { formatearPesos } from "@/lib/formato";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -42,7 +42,7 @@ export default async function PaginaProveedores() {
   // tener $30.000 a favor con otro no es "deber $70.000". Son dos cuentas
   // distintas con dos personas distintas, y ninguna cancela a la otra (§3.3).
   const seDebe = proveedores
-    .filter((p) => p.saldo.isPositive())
+    .filter((p) => esPositivo(p.saldo))
     .reduce((total, p) => total.plus(p.saldo), CERO);
   const aFavor = proveedores
     .filter((p) => p.saldo.isNegative())
