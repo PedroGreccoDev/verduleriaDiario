@@ -3,10 +3,13 @@ import type { Decimal } from "@/lib/decimal";
 import { esPositivo, formatearMonto } from "@/lib/decimal";
 import { errorDominio } from "@/lib/errores";
 import type { ReferenciaMovimientoCaja } from "@/generated/prisma/enums";
-import { obtenerCategoriaPorSlug, type SlugCategoria } from "./categorias";
+import {
+  obtenerCategoriaPorId,
+  obtenerCategoriaPorSlug,
+  type SlugCategoria,
+} from "./categorias";
 
-export interface DatosMovimientoCaja {
-  categoriaSlug: SlugCategoria;
+interface BaseMovimientoCaja {
   monto: Decimal;
   referenciaTipo: ReferenciaMovimientoCaja;
   referenciaId?: string | null;
@@ -18,6 +21,17 @@ export interface DatosMovimientoCaja {
   fecha?: Date;
   observacion?: string | null;
 }
+
+/**
+ * La categoría se identifica por `slug` desde los flujos de §4 —que la conocen en
+ * tiempo de compilación— y por `id` desde la carga manual, porque las categorías
+ * que agregue el dueño no tienen un slug que el código pueda conocer.
+ */
+export type DatosMovimientoCaja = BaseMovimientoCaja &
+  (
+    | { categoriaSlug: SlugCategoria; categoriaId?: never }
+    | { categoriaId: string; categoriaSlug?: never }
+  );
 
 /**
  * Registra un movimiento de la Bolsa Grande (§3.1).
@@ -39,7 +53,9 @@ export async function registrarMovimientoCaja(tx: PrismaTx, datos: DatosMovimien
     );
   }
 
-  const categoria = await obtenerCategoriaPorSlug(tx, datos.categoriaSlug);
+  const categoria = datos.categoriaSlug
+    ? await obtenerCategoriaPorSlug(tx, datos.categoriaSlug)
+    : await obtenerCategoriaPorId(tx, datos.categoriaId);
   const turnoId =
     datos.turnoId === undefined ? await idTurnoAbierto(tx) : datos.turnoId;
 

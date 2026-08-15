@@ -21,6 +21,31 @@ export const CATEGORIAS_SISTEMA = [
 
 export type SlugCategoria = (typeof CATEGORIAS_SISTEMA)[number]["slug"];
 
+/**
+ * Categorías que SIEMPRE las escribe un flujo de §4, nunca el operador a mano.
+ *
+ * Cada una de estas viene con algo más que el movimiento de caja: el retiro cierra
+ * un turno, la compra de cheques suma nominal a la cartera, el pago a proveedor
+ * imputa facturas y el cobro baja la deuda de un cliente. Cargarlas sueltas
+ * anotaría la plata sin el hecho que la explica —un cobro que no le baja la deuda
+ * a nadie, un pago que no salda ninguna factura— y la caja dejaría de coincidir
+ * con las cuentas.
+ *
+ * Las otras tres del sistema (aporte y retiro de socio, gasto operativo) no tienen
+ * flujo propio: existen justamente para cargarse a mano. Las que agregue el dueño
+ * más adelante también, porque nada las genera automáticamente.
+ */
+export const SLUGS_DE_FLUJO: readonly string[] = [
+  "retiro_turno",
+  "cobro_cuenta_corriente",
+  "compra_cheques",
+  "pago_proveedor_efectivo",
+];
+
+export function esCategoriaDeFlujo(slug: string): boolean {
+  return SLUGS_DE_FLUJO.includes(slug);
+}
+
 /** Idempotente: se puede correr en cada seed y en cada arranque sin duplicar. */
 export async function sembrarCategoriasSistema(tx: PrismaTx): Promise<void> {
   for (const categoria of CATEGORIAS_SISTEMA) {
@@ -48,4 +73,31 @@ export async function obtenerCategoriaPorSlug(tx: PrismaTx, slug: SlugCategoria)
   }
 
   return categoria;
+}
+
+/**
+ * Por id, para lo que carga el operador: las categorías que él agregue no tienen
+ * un slug que el código pueda conocer de antemano.
+ */
+export async function obtenerCategoriaPorId(tx: PrismaTx, id: string) {
+  const categoria = await tx.categoriaMovimiento.findUnique({ where: { id } });
+
+  if (!categoria) {
+    throw errorDominio("CATEGORIA_NO_ENCONTRADA", "Esa categoría no existe.");
+  }
+
+  return categoria;
+}
+
+/**
+ * Las que el operador puede elegir al cargar un movimiento a mano: las activas
+ * que no las escribe ningún flujo.
+ */
+export async function categoriasCargables(tx: PrismaTx) {
+  const categorias = await tx.categoriaMovimiento.findMany({
+    where: { activo: true },
+    orderBy: [{ tipo: "asc" }, { orden: "asc" }, { nombre: "asc" }],
+  });
+
+  return categorias.filter((categoria) => !esCategoriaDeFlujo(categoria.slug));
 }

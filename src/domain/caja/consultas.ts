@@ -1,9 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { CERO, type Decimal } from "@/lib/decimal";
 import { soloFecha } from "@/lib/fecha";
+import { categoriasCargables } from "./categorias";
 import { proximoTurnoSugerido, turnosSugeridos, type NombreTurno } from "./calendario";
 
 /** Consultas de lectura para la pantalla de caja. Sin efectos. */
+
+/** Las categorías que el operador puede elegir al cargar un movimiento a mano. */
+export async function categoriasParaCargarAMano() {
+  return categoriasCargables(prisma);
+}
 
 export interface MovimientoDeTurno {
   id: string;

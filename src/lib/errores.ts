@@ -15,6 +15,7 @@ export type CodigoError =
   // Caja (§3.1)
   | "MONTO_INVALIDO"
   | "CATEGORIA_NO_ENCONTRADA"
+  | "CATEGORIA_NO_CARGABLE"
   // Cheques (§4.2, §4.3, §4.4)
   | "CHEQUE_NO_ENCONTRADO"
   | "CHEQUE_FUERA_DE_CARTERA"
