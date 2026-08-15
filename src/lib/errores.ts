@@ -33,7 +33,8 @@ export type CodigoError =
   | "IMPUTACION_SUPERA_PAGO"
   | "IMPUTACION_DUPLICADA"
   // Clientes (§3.4)
-  | "CLIENTE_NO_ENCONTRADO";
+  | "CLIENTE_NO_ENCONTRADO"
+  | "NOMBRE_REQUERIDO";
 
 export class ErrorDominio extends Error {
   constructor(
