@@ -2,6 +2,7 @@ import Link from "next/link";
 import { historialEntregas } from "@/domain/cheques/consultas";
 import { formatearPesos } from "@/lib/formato";
 import { BotonRevertirEntrega } from "../_components/boton-revertir-entrega";
+import { BotonRechazarCheque } from "../_components/boton-rechazar-cheque";
 import {
   Card,
   CardContent,
@@ -101,12 +102,33 @@ export default async function PaginaEntregas() {
                     </p>
                   )}
 
-                  <div className="flex justify-end border-t pt-3">
-                    <BotonRevertirEntrega
-                      chequeId={entrega.chequeId}
-                      descripcion={describirLoQueVuelve(entrega)}
-                    />
-                  </div>
+                  {entrega.rechazo ? (
+                    <div className="space-y-1 border-t pt-3 text-sm text-muted-foreground">
+                      <p>
+                        Rebotó
+                        {entrega.rechazo.fecha &&
+                          ` el ${FECHA.format(entrega.rechazo.fecha)}`}
+                        {/* El motivo lo escribió el operador y suele traer su propio
+                            punto final, así que va aislado y no dentro de una frase. */}
+                        {entrega.rechazo.motivo && ` — ${entrega.rechazo.motivo}`}
+                      </p>
+                      <p>
+                        Lo levanta{" "}
+                        <span className="font-medium text-foreground">
+                          quien te lo vendió
+                        </span>
+                        ; la deuda con el proveedor sigue saldada.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-start justify-end gap-2 border-t pt-3">
+                      <BotonRechazarCheque chequeId={entrega.chequeId} />
+                      <BotonRevertirEntrega
+                        chequeId={entrega.chequeId}
+                        descripcion={describirLoQueVuelve(entrega)}
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </li>

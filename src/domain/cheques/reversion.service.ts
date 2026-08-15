@@ -42,6 +42,19 @@ export async function revertirEntregaCheque(datos: DatosReversionEntrega) {
       );
     }
 
+    // Un cheque rechazado conserva su `fecha_entrega`, así que sin esta guarda se
+    // podría revertir su entrega y quedaría en cartera con fecha de rechazo: un
+    // cheque que rebotó, listo para entregárselo a otro proveedor. Además reabriría
+    // una deuda que la financiera ya pagó (§4.4). Que rebotara PRUEBA que la
+    // entrega ocurrió, y una entrega que ocurrió no se corrige, se registra.
+    if (cheque.estado === "rechazado") {
+      throw errorDominio(
+        "CHEQUE_YA_RECHAZADO",
+        `El cheque ${cheque.banco} ${cheque.numero} figura como rechazado, así que su entrega ` +
+          "ocurrió de verdad y no se puede deshacer. Lo levanta quien te lo vendió (§4.4).",
+      );
+    }
+
     const proveedor = await tx.proveedor.findUniqueOrThrow({
       where: { id: cheque.proveedorDestinoId },
     });

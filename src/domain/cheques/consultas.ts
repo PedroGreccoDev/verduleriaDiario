@@ -70,6 +70,12 @@ export interface EntregaDelHistorial {
   facturas: { numero: string; montoImputado: Decimal }[];
   /** Nominal que no se imputó a ninguna factura: quedó como saldo a favor. */
   aCuenta: Decimal;
+  /**
+   * Un cheque que rebotó sigue apareciendo acá: la entrega ocurrió y el proveedor
+   * quedó saldado igual. Lo que cambia es que ya no se puede revertir ni volver a
+   * rechazar.
+   */
+  rechazo: { fecha: Date | null; motivo: string | null } | null;
 }
 
 /**
@@ -111,6 +117,10 @@ export async function historialEntregas(limite = 50): Promise<EntregaDelHistoria
         montoImputado: i.montoImputado,
       })),
       aCuenta: cheque.nominal.minus(imputado),
+      rechazo:
+        cheque.estado === "rechazado"
+          ? { fecha: cheque.fechaRechazo, motivo: cheque.motivoRechazo }
+          : null,
     };
   });
 }

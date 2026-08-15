@@ -261,6 +261,30 @@ describe("un cheque que rebotó no toca ningún saldo", () => {
 
     expect(await prisma.pagoProveedor.count({ where: { chequeId: cheque.id } })).toBe(1);
   });
+
+  it("su entrega no se puede revertir", async () => {
+    // Un cheque rechazado conserva su fecha_entrega. Sin esta guarda, revertir lo
+    // devolvería a la cartera con fecha de rechazo —un cheque que rebotó, listo
+    // para dárselo a otro proveedor— y encima reabriría la deuda que ya se saldó.
+    const proveedor = await crearProveedor();
+    const factura = await crearFactura(proveedor.id, "A-001", "100000");
+    const cheque = await chequeEnCartera();
+
+    await entregarCheque({
+      chequeId: cheque.id,
+      proveedorId: proveedor.id,
+      imputaciones: [{ facturaProveedorId: factura.id, monto: dec("100000") }],
+    });
+    await rechazarCheque({ chequeId: cheque.id, motivo: "Sin fondos" });
+
+    expect(await codigoDelError(() => revertirEntregaCheque({ chequeId: cheque.id }))).toBe(
+      "CHEQUE_YA_RECHAZADO",
+    );
+
+    // Y nada se movió: la factura sigue saldada.
+    expect((await facturaRecargada(factura.id)).saldoPendiente.toString()).toBe("0");
+    expect((await saldoCartera()).toString()).toBe("0");
+  });
 });
 
 describe("qué no se puede revertir", () => {
