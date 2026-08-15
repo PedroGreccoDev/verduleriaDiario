@@ -1,4 +1,4 @@
-import { obtenerEstadoCaja } from "@/domain/caja/consultas";
+import { categoriasParaCargarAMano, obtenerEstadoCaja } from "@/domain/caja/consultas";
 import { formatearFechaLarga, formatearHora, formatearPesos } from "@/lib/formato";
 import {
   Card,
@@ -20,6 +20,7 @@ import {
 import { FormularioAbrirTurno } from "./_components/formulario-abrir-turno";
 import { FormularioRetiro } from "./_components/formulario-retiro";
 import { FormularioCerrarTurno } from "./_components/formulario-cerrar-turno";
+import { FormularioMovimientoManual } from "./_components/formulario-movimiento-manual";
 
 // Lee el estado de la caja en cada request. Sin esto Next lo prerenderizaría en el
 // build y la pantalla mostraría el turno que estaba abierto al momento de compilar.
@@ -31,7 +32,32 @@ export const metadata = {
 
 export default async function PaginaCaja() {
   const estado = await obtenerEstadoCaja();
+  const categorias = await categoriasParaCargarAMano();
   const { turnoAbierto } = estado;
+
+  // Se carga con turno abierto y sin él: §3.1 admite movimientos fuera de turno, y
+  // la nafta se paga a las 7 de la mañana, antes de que nadie abra nada.
+  const cargarMovimiento = (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Gasto o ingreso suelto</CardTitle>
+        <CardDescription>
+          Lo que no viene de otra pantalla: nafta, arreglos, plata que pone o saca
+          un socio.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <FormularioMovimientoManual
+          categorias={categorias.map((categoria) => ({
+            id: categoria.id,
+            nombre: categoria.nombre,
+            tipo: categoria.tipo,
+          }))}
+          hayTurnoAbierto={turnoAbierto !== null}
+        />
+      </CardContent>
+    </Card>
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl px-4 py-8 space-y-6">
@@ -131,6 +157,8 @@ export default async function PaginaCaja() {
             </CardContent>
           </Card>
 
+          {cargarMovimiento}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Cerrar el turno</CardTitle>
@@ -141,22 +169,26 @@ export default async function PaginaCaja() {
           </Card>
         </>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">No hay ningún turno abierto</CardTitle>
-            <CardDescription>
-              {estado.proximoSugerido
-                ? `Hoy corresponde el turno ${estado.proximoSugerido}.`
-                : "Hoy ya se abrieron todos los turnos habituales."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FormularioAbrirTurno
-              sugeridos={estado.sugeridos}
-              proximoSugerido={estado.proximoSugerido}
-            />
-          </CardContent>
-        </Card>
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">No hay ningún turno abierto</CardTitle>
+              <CardDescription>
+                {estado.proximoSugerido
+                  ? `Hoy corresponde el turno ${estado.proximoSugerido}.`
+                  : "Hoy ya se abrieron todos los turnos habituales."}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FormularioAbrirTurno
+                sugeridos={estado.sugeridos}
+                proximoSugerido={estado.proximoSugerido}
+              />
+            </CardContent>
+          </Card>
+
+          {cargarMovimiento}
+        </>
       )}
 
       {estado.turnosDelDia.length > 0 && (

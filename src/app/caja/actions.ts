@@ -5,6 +5,7 @@ import { ErrorDominio } from "@/lib/errores";
 import { montoDeFormulario } from "@/lib/formulario-monto";
 import { abrirTurno, cerrarTurno } from "@/domain/caja/turno.service";
 import { registrarRetiroParcial } from "@/domain/caja/retiro.service";
+import { registrarMovimientoManual } from "@/domain/caja/movimiento-manual.service";
 
 /**
  * Server Actions de la pantalla de caja.
@@ -38,6 +39,28 @@ async function ejecutar(accion: () => Promise<unknown>): Promise<ResultadoAccion
 
   revalidatePath("/caja");
   return EXITO;
+}
+
+/**
+ * Gasto o ingreso cargado a mano. No lleva turno: el dominio lo asocia al turno
+ * abierto si hay alguno, y si no lo deja fuera de turno (§3.1).
+ */
+export async function accionRegistrarMovimiento(
+  _previo: ResultadoAccion,
+  formulario: FormData,
+): Promise<ResultadoAccion> {
+  const categoriaId = String(formulario.get("categoriaId") ?? "");
+  const observacion = String(formulario.get("observacion") ?? "").trim();
+
+  if (!categoriaId) return { ok: false, mensaje: "Elegí una categoría." };
+
+  return ejecutar(() =>
+    registrarMovimientoManual({
+      categoriaId,
+      monto: montoDeFormulario(String(formulario.get("monto") ?? ""), "Monto"),
+      observacion: observacion || null,
+    }),
+  );
 }
 
 export async function accionAbrirTurno(
