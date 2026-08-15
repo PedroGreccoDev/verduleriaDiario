@@ -1,5 +1,6 @@
 import { categoriasParaCargarAMano, obtenerEstadoCaja } from "@/domain/caja/consultas";
 import { formatearFechaLarga, formatearHora, formatearPesos } from "@/lib/formato";
+import { soloFecha } from "@/lib/fecha";
 import {
   Card,
   CardContent,
@@ -64,7 +65,9 @@ export default async function PaginaCaja() {
       <header className="space-y-1">
         <h1 className="text-2xl font-semibold">Caja por turno</h1>
         <p className="text-sm text-muted-foreground first-letter:uppercase">
-          {formatearFechaLarga(new Date())}
+          {/* `soloFecha` primero: `formatearFechaLarga` formatea en UTC, así que un
+              `new Date()` crudo del turno tarde muestra el día siguiente. */}
+          {formatearFechaLarga(soloFecha())}
         </p>
       </header>
 

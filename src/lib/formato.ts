@@ -33,6 +33,12 @@ export function formatearHora(fecha: Date): string {
   return HORA.format(fecha);
 }
 
+/**
+ * Espera una fecha YA normalizada al día local: un `@db.Date` de la base, o el
+ * resultado de `soloFecha()`. Pasarle un `new Date()` crudo muestra el día
+ * siguiente durante el turno tarde, que es cuando en Argentina ya es otro día en
+ * UTC. Para instantes con hora está `formatearHora`, que sí usa la zona local.
+ */
 export function formatearFechaLarga(fecha: Date): string {
   return FECHA_LARGA.format(fecha);
 }
