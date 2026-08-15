@@ -33,6 +33,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
             <Link href="/cheques" className="rounded-md px-3 py-1.5 hover:bg-accent">
               Cheques
             </Link>
+            <Link href="/proveedores" className="rounded-md px-3 py-1.5 hover:bg-accent">
+              Proveedores
+            </Link>
           </div>
         </nav>
         {children}
