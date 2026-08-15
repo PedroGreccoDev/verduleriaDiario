@@ -10,7 +10,8 @@ código refieren a sus secciones.
 
 ## Estado
 
-Base del proyecto y capa de dominio. Sin UI ni endpoints HTTP todavía.
+Dominio completo de §4 y pantallas de caja, cheques y proveedores. Falta la UI de
+clientes (el servicio existe) y los reportes de §5.
 
 ## Puesta en marcha
 
@@ -18,8 +19,8 @@ Base del proyecto y capa de dominio. Sin UI ni endpoints HTTP todavía.
 npm install
 
 # Postgres local, dos servidores separados (ver "Bases de datos")
-npx prisma dev -d -n verduleria-dev
-npx prisma dev -d -n verduleria-test
+npx prisma dev start verduleria-dev --detach
+npx prisma dev start verduleria-test --detach
 
 cp .env.example .env      # y ajustar los puertos que haya asignado prisma dev
 npm run db:deploy         # aplica migraciones
@@ -30,8 +31,8 @@ npm test
 Si tras reiniciar la máquina falla la conexión, los servidores están parados:
 
 ```bash
-npx prisma dev start -n verduleria-dev
-npx prisma dev start -n verduleria-test
+npx prisma dev start verduleria-dev --detach
+npx prisma dev start verduleria-test --detach
 ```
 
 ## Bases de datos
@@ -59,13 +60,23 @@ src/
   lib/                   prisma, decimal, fechas, errores
   domain/
     caja/                turnos, retiros, movimientos de la Bolsa Grande (§4.1)
+                         y los rangos y totales del reporte (§5.1)
     cheques/             compra, entrega, rechazo, cartera y ahorro (§4.2–4.4)
     proveedores/         facturas, pagos en efectivo, imputación (§4.5)
     clientes/            cuenta corriente / fiado
+  app/
+    caja/                apertura, retiros y cierre del turno
+    cheques/             cartera, compra, entrega e historial
+    proveedores/         cuentas, alta de factura y pago en efectivo
+    reportes/            ingresos y egresos (§5.1)
 tests/
   invariantes-base.test.ts  que las restricciones de la migración muerden
-  domain/                   los cinco flujos de §4
+  domain/                   los cinco flujos de §4, más períodos y reporte
 ```
+
+Las Server Actions viven en el `actions.ts` de cada sección y son una capa fina:
+parsean el formulario, llaman al dominio y traducen el error. Ninguna validación de
+negocio vive ahí.
 
 ## Las reglas que no se rompen
 

@@ -11,7 +11,7 @@ export function crearPrismaClient(connectionString?: string): PrismaClient {
 
   if (!url) {
     throw new Error(
-      "Falta DATABASE_URL. Si el Postgres local está parado: npx prisma dev start -n verduleria-dev",
+      "Falta DATABASE_URL. Si el Postgres local está parado: npx prisma dev start verduleria-dev",
     );
   }
 
