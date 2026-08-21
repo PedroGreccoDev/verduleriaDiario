@@ -47,3 +47,6 @@ next-env.d.ts
 # así que commitearlos deja enlaces rotos para cualquier otro clon.
 # Se reinstalan a partir de skills-lock.json, que sí va versionado.
 /.claude/skills/
+
+# documentos comerciales: precios y acuerdo de socios, no van al repo
+/comercial/

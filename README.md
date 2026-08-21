@@ -10,8 +10,13 @@ código refieren a sus secciones.
 
 ## Estado
 
-Dominio completo de §4 y pantallas de caja, cheques y proveedores. Falta la UI de
-clientes (el servicio existe) y los reportes de §5.
+Dominio completo de §4 y las cinco pantallas: caja, cheques, proveedores, clientes
+y el reporte de ingresos y egresos de §5.1.
+
+Lo que falta para poder entregar está en `pendientes-mvp.md`, por prioridad. Los
+tres bloqueantes son: alta de proveedores y de vendedores de cheques (hoy solo se
+crean en el seed), corrección o anulación de lo mal cargado (solo existe revertir
+una entrega de cheque), y carga de saldos iniciales.
 
 ## Puesta en marcha
 
