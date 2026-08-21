@@ -1,0 +1,36 @@
+# Fin de línea: LF en todos lados, siempre.
+#
+# Sin esto, `core.autocrlf=true` (el default de Git para Windows) convierte a
+# CRLF al hacer checkout, y cada archivo que se toca aparece modificado entero
+# aunque no haya cambiado una sola línea. Fijarlo acá gana sobre la config de
+# cada máquina, así que el repo se ve igual desde Windows, Mac o Linux.
+* text=auto eol=lf
+
+# Archivos que son de Windows por definición y necesitan CRLF para funcionar.
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binarios: que Git no intente tocarles los saltos de línea ni mostrar el diff.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.webp binary
+*.ico  binary
+*.pdf  binary
+*.woff binary
+*.woff2 binary
+*.ttf  binary
+*.otf  binary
+
+# Bases SQLite y ejecutables, de cara al empaquetado como instalador.
+*.db      binary
+*.sqlite  binary
+*.sqlite3 binary
+*.exe     binary
+*.dll     binary
+*.node    binary
+
+# Generados: se versionan pero no ensucian el diff de un pull request.
+package-lock.json linguist-generated=true -diff
