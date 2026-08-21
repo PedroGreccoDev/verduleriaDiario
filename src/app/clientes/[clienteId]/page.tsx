@@ -50,13 +50,13 @@ export default async function PaginaCuentaCliente(
   const aFavor = cliente.saldo.isNegative() ? cliente.saldo.abs() : null;
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6">
+    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
       <header className="space-y-1">
         <Link href="/clientes" className="text-sm text-muted-foreground hover:underline">
           ← Clientes
         </Link>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold">{cliente.nombre}</h1>
+          <h1 className="font-heading text-2xl font-semibold">{cliente.nombre}</h1>
           {!cliente.activo && <Badge variant="outline">dado de baja</Badge>}
         </div>
         {cliente.telefono && (

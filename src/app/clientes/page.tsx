@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TarjetaTotal } from "@/components/tarjeta-total";
 import { FormularioCliente } from "./_components/formulario-cliente";
 
 export const dynamic = "force-dynamic";
@@ -50,10 +51,10 @@ export default async function PaginaClientes() {
     .reduce((total, c) => total.plus(c.saldo.abs()), CERO);
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6">
+    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold">Clientes</h1>
+          <h1 className="font-heading text-2xl font-semibold">Clientes</h1>
           <p className="text-sm text-muted-foreground">
             La cuenta corriente del fiado: quién debe, cuánto y desde cuándo.
           </p>
@@ -62,31 +63,22 @@ export default async function PaginaClientes() {
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Fiado sin cobrar</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">{formatearPesos(seDebe)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              Repartido entre {deudores.length} cliente{deudores.length === 1 ? "" : "s"}.
-              Es mercadería que salió y todavía no volvió como plata.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Saldo a favor de clientes</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">{formatearPesos(aFavor)}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              Pagaron de más. Se descuenta solo de lo próximo que se lleven.
-            </p>
-          </CardContent>
-        </Card>
+        <TarjetaTotal
+          etiqueta="Fiado sin cobrar"
+          monto={formatearPesos(seDebe)}
+          detalle={`Repartido entre ${deudores.length} cliente${deudores.length === 1 ? "" : "s"}`}
+        />
+        <TarjetaTotal
+          etiqueta="Saldo a favor de clientes"
+          monto={formatearPesos(aFavor)}
+          detalle="Pagaron de más"
+        />
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        El fiado es mercadería que salió y todavía no volvió como plata. El saldo a
+        favor se descuenta solo de lo próximo que se lleven.
+      </p>
 
       <Card>
         <CardHeader>

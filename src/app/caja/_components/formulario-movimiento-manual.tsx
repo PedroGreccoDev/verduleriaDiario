@@ -5,6 +5,15 @@ import { accionRegistrarMovimiento, type ResultadoAccion } from "../actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { MensajeError } from "./mensaje-error";
 
 const INICIAL: ResultadoAccion = { ok: true };
@@ -55,31 +64,35 @@ export function FormularioMovimientoManual({
       <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">
         <div className="space-y-2">
           <Label htmlFor="categoriaId">Concepto</Label>
-          <select
-            id="categoriaId"
+          <Select
             name="categoriaId"
             required
             disabled={pendiente}
             value={categoriaId}
-            onChange={(e) => setCategoriaId(e.target.value)}
-            className="h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs"
+            onValueChange={setCategoriaId}
           >
-            <option value="">Elegí…</option>
-            <optgroup label="Sale plata">
-              {egresos.map((categoria) => (
-                <option key={categoria.id} value={categoria.id}>
-                  {categoria.nombre}
-                </option>
-              ))}
-            </optgroup>
-            <optgroup label="Entra plata">
-              {ingresos.map((categoria) => (
-                <option key={categoria.id} value={categoria.id}>
-                  {categoria.nombre}
-                </option>
-              ))}
-            </optgroup>
-          </select>
+            <SelectTrigger id="categoriaId" className="w-full">
+              <SelectValue placeholder="Elegí…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                <SelectLabel>Sale plata</SelectLabel>
+                {egresos.map((categoria) => (
+                  <SelectItem key={categoria.id} value={categoria.id}>
+                    {categoria.nombre}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+              <SelectGroup>
+                <SelectLabel>Entra plata</SelectLabel>
+                {ingresos.map((categoria) => (
+                  <SelectItem key={categoria.id} value={categoria.id}>
+                    {categoria.nombre}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2">

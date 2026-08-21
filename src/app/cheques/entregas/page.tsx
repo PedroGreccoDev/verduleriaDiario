@@ -35,12 +35,12 @@ export default async function PaginaEntregas() {
   const entregas = await historialEntregas();
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6">
+    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
       <header>
         <Link href="/cheques" className="text-sm text-muted-foreground hover:underline">
           ← Cartera
         </Link>
-        <h1 className="mt-1 text-2xl font-semibold">Entregas de cheques</h1>
+        <h1 className="font-heading mt-1 text-2xl font-semibold">Entregas de cheques</h1>
         <p className="text-sm text-muted-foreground">
           Las más recientes primero. Revertir una entrega es para corregirla cuando
           se cargó mal: devuelve el cheque a la cartera y reabre las facturas que

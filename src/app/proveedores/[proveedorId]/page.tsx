@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TarjetaTotal } from "@/components/tarjeta-total";
 import { FormularioFactura } from "../_components/formulario-factura";
 import { FormularioPagoEfectivo } from "../_components/formulario-pago-efectivo";
 
@@ -62,52 +63,39 @@ export default async function PaginaCuentaProveedor(
   const credito = proveedor.saldo.isNegative() ? proveedor.saldo.abs() : null;
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6">
+    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
       <header className="space-y-1">
         <Link href="/proveedores" className="text-sm text-muted-foreground hover:underline">
           ← Proveedores
         </Link>
         <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold">{proveedor.nombre}</h1>
+          <h1 className="font-heading text-2xl font-semibold">{proveedor.nombre}</h1>
           {!proveedor.activo && <Badge variant="outline">dado de baja</Badge>}
         </div>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>
-              {credito ? "Saldo a favor nuestro" : "Se le debe"}
-            </CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatearPesos(credito ?? proveedor.saldo)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              {credito
-                ? "Ya se le entregó de más. Se descuenta solo de la próxima factura que cargues."
-                : "Saldo de cuenta corriente, incluyendo lo que todavía no se imputó a ninguna factura."}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Facturas pendientes</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatearPesos(cuenta.deudaPendiente)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              {pendientes.length === 0
-                ? "Ninguna factura sin saldar."
-                : `Repartidos en ${pendientes.length} factura${pendientes.length === 1 ? "" : "s"}.`}
-            </p>
-          </CardContent>
-        </Card>
+        <TarjetaTotal
+          etiqueta={credito ? "Saldo a favor nuestro" : "Se le debe"}
+          monto={formatearPesos(credito ?? proveedor.saldo)}
+          detalle="Cuenta corriente"
+        />
+        <TarjetaTotal
+          etiqueta="Facturas pendientes"
+          monto={formatearPesos(cuenta.deudaPendiente)}
+          detalle={
+            pendientes.length === 0
+              ? "Ninguna sin saldar"
+              : `Repartidos en ${pendientes.length} factura${pendientes.length === 1 ? "" : "s"}`
+          }
+        />
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        {credito
+          ? "Ya se le entregó de más. Ese saldo a favor se descuenta solo de la próxima factura que cargues."
+          : "El saldo de cuenta corriente incluye lo que todavía no se imputó a ninguna factura."}
+      </p>
 
       <Card>
         <CardHeader>

@@ -19,12 +19,12 @@ export default async function PaginaComprarCheque() {
   const vendedores = await vendedoresActivos();
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-8 space-y-6">
+    <main className="w-full max-w-2xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
       <header className="space-y-1">
         <Link href="/cheques" className="text-sm text-muted-foreground hover:underline">
           ← Cartera
         </Link>
-        <h1 className="text-2xl font-semibold">Comprar cheque</h1>
+        <h1 className="font-heading text-2xl font-semibold">Comprar cheque</h1>
       </header>
 
       <Card>

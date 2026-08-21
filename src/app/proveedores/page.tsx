@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TarjetaTotal } from "@/components/tarjeta-total";
 
 export const dynamic = "force-dynamic";
 
@@ -41,53 +42,38 @@ export default async function PaginaProveedores() {
   // Deuda y crédito se muestran separados, nunca netos: deberle $100.000 a uno y
   // tener $30.000 a favor con otro no es "deber $70.000". Son dos cuentas
   // distintas con dos personas distintas, y ninguna cancela a la otra (§3.3).
-  const seDebe = proveedores
-    .filter((p) => esPositivo(p.saldo))
-    .reduce((total, p) => total.plus(p.saldo), CERO);
-  const aFavor = proveedores
-    .filter((p) => p.saldo.isNegative())
-    .reduce((total, p) => total.plus(p.saldo.abs()), CERO);
+  const conDeuda = proveedores.filter((p) => esPositivo(p.saldo));
+  const conCredito = proveedores.filter((p) => p.saldo.isNegative());
+  const seDebe = conDeuda.reduce((total, p) => total.plus(p.saldo), CERO);
+  const aFavor = conCredito.reduce((total, p) => total.plus(p.saldo.abs()), CERO);
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6">
+    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Proveedores</h1>
+        <h1 className="font-heading text-2xl font-semibold">Proveedores</h1>
         <p className="text-sm text-muted-foreground">
           Lo que se le debe a cada uno y qué facturas quedan pendientes.
         </p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Deuda total</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatearPesos(seDebe)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              Sumando solo a los que se les debe. No se descuenta el saldo a favor
-              que haya con otros.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Saldo a favor</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatearPesos(aFavor)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              Plata ya entregada de más. Se descuenta sola de la próxima factura de
-              ese mismo proveedor.
-            </p>
-          </CardContent>
-        </Card>
+        <TarjetaTotal
+          etiqueta="Deuda total"
+          monto={formatearPesos(seDebe)}
+          detalle={`A ${conDeuda.length} proveedor${conDeuda.length === 1 ? "" : "es"}`}
+        />
+        <TarjetaTotal
+          etiqueta="Saldo a favor"
+          monto={formatearPesos(aFavor)}
+          detalle={`Con ${conCredito.length} proveedor${conCredito.length === 1 ? "" : "es"}`}
+        />
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        Los dos totales van separados: el saldo a favor que haya con uno no se
+        descuenta de lo que se le debe a otro. Cada saldo a favor se descuenta solo
+        de la próxima factura de ese mismo proveedor.
+      </p>
 
       <Card>
         <CardHeader>

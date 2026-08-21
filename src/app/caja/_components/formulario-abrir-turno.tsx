@@ -31,14 +31,14 @@ export function FormularioAbrirTurno({
           {opciones.map((nombre) => (
             <label
               key={nombre}
-              className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer has-[:checked]:border-foreground has-[:checked]:bg-accent"
+              className="flex items-center gap-2 rounded-xl border px-3.5 py-2.5 text-sm cursor-pointer has-[:checked]:border-primary has-[:checked]:bg-accent has-[:checked]:text-accent-foreground has-[:checked]:font-medium"
             >
               <input
                 type="radio"
                 name="nombre"
                 value={nombre}
                 defaultChecked={nombre === (proximoSugerido ?? sugeridos[0])}
-                className="accent-foreground"
+                className="accent-primary"
               />
               <span className="capitalize">{nombre}</span>
               {!sugeridos.includes(nombre) && (

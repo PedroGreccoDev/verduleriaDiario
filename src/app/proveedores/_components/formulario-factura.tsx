@@ -6,6 +6,7 @@ import { aEnteroEscalado, formatearCanonico, normalizarMontoTexto } from "@/lib/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { DatePicker } from "@/components/date-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const INICIAL: ResultadoAccion = { ok: true };
@@ -72,23 +73,12 @@ export function FormularioFactura({
 
         <div className="space-y-2">
           <Label htmlFor="fecha">Fecha</Label>
-          <Input
-            id="fecha"
-            name="fecha"
-            type="date"
-            defaultValue={hoy}
-            disabled={pendiente}
-          />
+          <DatePicker id="fecha" name="fecha" defaultValue={hoy} disabled={pendiente} />
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="fechaVencimiento">Vencimiento</Label>
-          <Input
-            id="fechaVencimiento"
-            name="fechaVencimiento"
-            type="date"
-            disabled={pendiente}
-          />
+          <DatePicker id="fechaVencimiento" name="fechaVencimiento" disabled={pendiente} />
           <p className="text-xs text-muted-foreground">
             Opcional. Sin fecha, la factura no aparece en los avisos de vencimiento.
           </p>

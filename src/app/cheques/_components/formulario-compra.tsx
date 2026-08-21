@@ -7,6 +7,14 @@ import { formatearCanonico } from "@/lib/monto-texto";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/date-picker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const INICIAL: ResultadoAccion = { ok: true };
@@ -29,23 +37,18 @@ export function FormularioCompra({
     <form action={accion} className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="vendedorChequeId">¿A quién se lo comprás?</Label>
-        <select
-          id="vendedorChequeId"
-          name="vendedorChequeId"
-          required
-          disabled={pendiente}
-          className="w-full rounded-md border bg-transparent px-3 py-2 text-sm"
-          defaultValue=""
-        >
-          <option value="" disabled>
-            Elegí un vendedor
-          </option>
-          {vendedores.map((vendedor) => (
-            <option key={vendedor.id} value={vendedor.id}>
-              {vendedor.nombre}
-            </option>
-          ))}
-        </select>
+        <Select name="vendedorChequeId" required disabled={pendiente}>
+          <SelectTrigger id="vendedorChequeId" className="w-full">
+            <SelectValue placeholder="Elegí un vendedor" />
+          </SelectTrigger>
+          <SelectContent>
+            {vendedores.map((vendedor) => (
+              <SelectItem key={vendedor.id} value={vendedor.id}>
+                {vendedor.nombre}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -114,13 +117,7 @@ export function FormularioCompra({
         </div>
         <div className="space-y-2">
           <Label htmlFor="fechaVencimiento">Vencimiento</Label>
-          <Input
-            id="fechaVencimiento"
-            name="fechaVencimiento"
-            type="date"
-            required
-            disabled={pendiente}
-          />
+          <DatePicker id="fechaVencimiento" name="fechaVencimiento" disabled={pendiente} />
         </div>
       </div>
 

@@ -61,9 +61,9 @@ export default async function PaginaCaja() {
   );
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-8 space-y-6">
+    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Caja por turno</h1>
+        <h1 className="font-heading text-2xl font-semibold">Caja por turno</h1>
         <p className="text-sm text-muted-foreground first-letter:uppercase">
           {/* `soloFecha` primero: `formatearFechaLarga` formatea en UTC, así que un
               `new Date()` crudo del turno tarde muestra el día siguiente. */}
@@ -73,41 +73,45 @@ export default async function PaginaCaja() {
 
       {turnoAbierto ? (
         <>
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="capitalize">
-                    Turno {turnoAbierto.nombre}
-                  </CardTitle>
-                  <CardDescription>
-                    Abierto a las {formatearHora(turnoAbierto.fechaApertura)}
-                    {turnoAbierto.observacion ? ` · ${turnoAbierto.observacion}` : ""}
-                  </CardDescription>
+          <div className="grid items-start gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="capitalize">
+                      Turno {turnoAbierto.nombre}
+                    </CardTitle>
+                    <CardDescription>
+                      Abierto a las {formatearHora(turnoAbierto.fechaApertura)}
+                      {turnoAbierto.observacion ? ` · ${turnoAbierto.observacion}` : ""}
+                    </CardDescription>
+                  </div>
+                  <Badge>Abierto</Badge>
                 </div>
-                <Badge>Abierto</Badge>
-              </div>
-            </CardHeader>
+              </CardHeader>
 
-            <CardContent className="space-y-6">
-              <dl className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <Total etiqueta="Retirado a la Bolsa Grande" monto={estado.totalRetirado} />
-                <Total etiqueta="Otros ingresos" monto={estado.totalIngresos.minus(estado.totalRetirado)} />
-                <Total etiqueta="Egresos" monto={estado.totalEgresos} />
-              </dl>
+              <CardContent className="space-y-6">
+                <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                  <Total etiqueta="Retirado a la Bolsa Grande" monto={estado.totalRetirado} />
+                  <Total etiqueta="Otros ingresos" monto={estado.totalIngresos.minus(estado.totalRetirado)} />
+                  <Total etiqueta="Egresos" monto={estado.totalEgresos} />
+                </dl>
 
-              <Separator />
+                <Separator />
 
-              <section className="space-y-3">
-                <h2 className="text-sm font-medium">Registrar un retiro</h2>
-                <p className="text-xs text-muted-foreground">
-                  El efectivo pasa de la registradora a la Bolsa Grande. Podés hacer
-                  varios retiros parciales durante el turno.
-                </p>
-                <FormularioRetiro turnoId={turnoAbierto.id} />
-              </section>
-            </CardContent>
-          </Card>
+                <section className="space-y-3">
+                  <h2 className="text-sm font-medium">Registrar un retiro</h2>
+                  <p className="text-xs text-muted-foreground">
+                    El efectivo pasa de la registradora a la Bolsa Grande. Podés
+                    hacer varios retiros parciales durante el turno.
+                  </p>
+                  <FormularioRetiro turnoId={turnoAbierto.id} />
+                </section>
+              </CardContent>
+            </Card>
+
+            {cargarMovimiento}
+          </div>
 
           <Card>
             <CardHeader>
@@ -160,9 +164,7 @@ export default async function PaginaCaja() {
             </CardContent>
           </Card>
 
-          {cargarMovimiento}
-
-          <Card>
+          <Card className="lg:max-w-md">
             <CardHeader>
               <CardTitle className="text-base">Cerrar el turno</CardTitle>
             </CardHeader>
@@ -172,7 +174,7 @@ export default async function PaginaCaja() {
           </Card>
         </>
       ) : (
-        <>
+        <div className="grid items-start gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="text-base">No hay ningún turno abierto</CardTitle>
@@ -191,7 +193,7 @@ export default async function PaginaCaja() {
           </Card>
 
           {cargarMovimiento}
-        </>
+        </div>
       )}
 
       {estado.turnosDelDia.length > 0 && (

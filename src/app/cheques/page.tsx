@@ -18,6 +18,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { TarjetaTotal } from "@/components/tarjeta-total";
 
 export const dynamic = "force-dynamic";
 
@@ -36,10 +37,10 @@ export default async function PaginaCheques() {
   const hoy = new Date();
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6">
+    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
       <header className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold">Cartera de cheques</h1>
+          <h1 className="font-heading text-2xl font-semibold">Cartera de cheques</h1>
           <p className="text-sm text-muted-foreground">
             Se mide a valor nominal. No se suma con la plata de la caja: son dos
             cosas distintas.
@@ -56,53 +57,27 @@ export default async function PaginaCheques() {
       </header>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>En cartera, a nominal</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatearPesos(resumen.nominalTotal)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              {resumen.cheques.length} cheque{resumen.cheques.length === 1 ? "" : "s"} sin
-              entregar
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Lo que pagaste por ellos</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatearPesos(resumen.costoTotal)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              Ahorro latente {formatearPesos(resumen.ahorroLatente)}: todavía no es
-              tuyo, el cheque puede rebotar.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardDescription>Ahorro de este mes</CardDescription>
-            <CardTitle className="text-2xl tabular-nums">
-              {formatearPesos(resumen.ahorroDelMes)}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-xs text-muted-foreground">
-              De {resumen.chequesEntregadosEnElMes} cheque
-              {resumen.chequesEntregadosEnElMes === 1 ? "" : "s"} entregado
-              {resumen.chequesEntregadosEnElMes === 1 ? "" : "s"}. No es un ingreso de
-              caja.
-            </p>
-          </CardContent>
-        </Card>
+        <TarjetaTotal
+          etiqueta="En cartera, a nominal"
+          monto={formatearPesos(resumen.nominalTotal)}
+          detalle={`${resumen.cheques.length} cheque${resumen.cheques.length === 1 ? "" : "s"} sin entregar`}
+        />
+        <TarjetaTotal
+          etiqueta="Lo que pagaste por ellos"
+          monto={formatearPesos(resumen.costoTotal)}
+          detalle={`Ahorro latente ${formatearPesos(resumen.ahorroLatente)}`}
+        />
+        <TarjetaTotal
+          etiqueta="Ahorro de este mes"
+          monto={formatearPesos(resumen.ahorroDelMes)}
+          detalle={`De ${resumen.chequesEntregadosEnElMes} cheque${resumen.chequesEntregadosEnElMes === 1 ? "" : "s"} entregado${resumen.chequesEntregadosEnElMes === 1 ? "" : "s"}`}
+        />
       </div>
+
+      <p className="text-xs text-muted-foreground">
+        El ahorro latente todavía no es tuyo: el cheque puede rebotar. El ahorro ya
+        realizado tampoco es un ingreso de caja —es un menor egreso.
+      </p>
 
       <Card>
         <CardHeader>

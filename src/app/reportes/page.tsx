@@ -19,6 +19,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { DatePicker } from "@/components/date-picker";
+import { TarjetaTotal } from "@/components/tarjeta-total";
 
 export const dynamic = "force-dynamic";
 
@@ -48,8 +57,10 @@ const FECHA_Y_HORA = new Intl.DateTimeFormat("es-AR", {
   timeZone: "America/Argentina/Buenos_Aires",
 });
 
-const CLASE_SELECT =
-  "h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs";
+// Radix Select no admite value="" (lo reserva para "sin selección"), así que
+// "todos"/"todas" viajan en la URL con este valor y se traducen acá mismo a "".
+const SENTINEL_TIPO = "__todos__";
+const SENTINEL_CATEGORIA = "__todas__";
 
 function primerValor(valor: string | string[] | undefined): string {
   return typeof valor === "string" ? valor : "";
@@ -65,8 +76,10 @@ export default async function PaginaReporte(props: PageProps<"/reportes">) {
   const desdeTexto = primerValor(parametros.desde);
   const hastaTexto = primerValor(parametros.hasta);
 
-  const tipo = primerValor(parametros.tipo);
-  const categoriaId = primerValor(parametros.categoria);
+  const tipoParam = primerValor(parametros.tipo);
+  const tipo = tipoParam === SENTINEL_TIPO ? "" : tipoParam;
+  const categoriaParam = primerValor(parametros.categoria);
+  const categoriaId = categoriaParam === SENTINEL_CATEGORIA ? "" : categoriaParam;
 
   const referencia = referenciaDeTexto(fechaTexto);
   const periodo: Periodo | null =
@@ -84,9 +97,9 @@ export default async function PaginaReporte(props: PageProps<"/reportes">) {
     : null;
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-4 py-8 space-y-6">
+    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
       <header className="space-y-1">
-        <h1 className="text-2xl font-semibold">Ingresos y egresos</h1>
+        <h1 className="font-heading text-2xl font-semibold">Ingresos y egresos</h1>
         <p className="text-sm text-muted-foreground">
           Movimientos de la Bolsa Grande. No son ventas —el sistema no las
           registra— ni incluye la cartera de cheques, que se mide a nominal.
@@ -133,50 +146,45 @@ export default async function PaginaReporte(props: PageProps<"/reportes">) {
             {preset === "personalizado" ? (
               <>
                 <Campo etiqueta="Desde">
-                  <input
-                    type="date"
-                    name="desde"
-                    defaultValue={desdeTexto}
-                    className={CLASE_SELECT}
-                  />
+                  <DatePicker name="desde" defaultValue={desdeTexto} />
                 </Campo>
                 <Campo etiqueta="Hasta">
-                  <input
-                    type="date"
-                    name="hasta"
-                    defaultValue={hastaTexto}
-                    className={CLASE_SELECT}
-                  />
+                  <DatePicker name="hasta" defaultValue={hastaTexto} />
                 </Campo>
               </>
             ) : (
               <Campo etiqueta={preset === "dia" ? "Día" : "Día de referencia"}>
-                <input
-                  type="date"
-                  name="fecha"
-                  defaultValue={fechaTexto}
-                  className={CLASE_SELECT}
-                />
+                <DatePicker name="fecha" defaultValue={fechaTexto} />
               </Campo>
             )}
 
             <Campo etiqueta="Tipo">
-              <select name="tipo" defaultValue={tipo} className={CLASE_SELECT}>
-                <option value="">Todos</option>
-                <option value="ingreso">Ingresos</option>
-                <option value="egreso">Egresos</option>
-              </select>
+              <Select name="tipo" defaultValue={tipo || SENTINEL_TIPO}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SENTINEL_TIPO}>Todos</SelectItem>
+                  <SelectItem value="ingreso">Ingresos</SelectItem>
+                  <SelectItem value="egreso">Egresos</SelectItem>
+                </SelectContent>
+              </Select>
             </Campo>
 
             <Campo etiqueta="Categoría">
-              <select name="categoria" defaultValue={categoriaId} className={CLASE_SELECT}>
-                <option value="">Todas</option>
-                {categorias.map((categoria) => (
-                  <option key={categoria.id} value={categoria.id}>
-                    {categoria.nombre}
-                  </option>
-                ))}
-              </select>
+              <Select name="categoria" defaultValue={categoriaId || SENTINEL_CATEGORIA}>
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SENTINEL_CATEGORIA}>Todas</SelectItem>
+                  {categorias.map((categoria) => (
+                    <SelectItem key={categoria.id} value={categoria.id}>
+                      {categoria.nombre}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </Campo>
 
             <Button type="submit" variant="secondary">
@@ -202,40 +210,19 @@ export default async function PaginaReporte(props: PageProps<"/reportes">) {
             {describirPeriodo(periodo)}
           </p>
 
+          {/* Tarjetas de total: etiqueta y número, nada más. Cualquier texto que
+              varíe de largo entre una y otra las deja de distinta altura, así que
+              la aclaración del neto va abajo de la grilla y no adentro de una. */}
           <div className="grid gap-4 sm:grid-cols-3">
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Ingresos</CardDescription>
-                <CardTitle className="text-2xl tabular-nums">
-                  {formatearPesos(reporte.totalIngresos)}
-                </CardTitle>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Egresos</CardDescription>
-                <CardTitle className="text-2xl tabular-nums">
-                  {formatearPesos(reporte.totalEgresos)}
-                </CardTitle>
-              </CardHeader>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-2">
-                <CardDescription>Neto del período</CardDescription>
-                <CardTitle className="text-2xl tabular-nums">
-                  {formatearPesos(reporte.neto)}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-xs text-muted-foreground">
-                  Lo que entró menos lo que salió en estos días. No es la plata que
-                  hay en la Bolsa Grande.
-                </p>
-              </CardContent>
-            </Card>
+            <TarjetaTotal etiqueta="Ingresos" monto={formatearPesos(reporte.totalIngresos)} />
+            <TarjetaTotal etiqueta="Egresos" monto={formatearPesos(reporte.totalEgresos)} />
+            <TarjetaTotal etiqueta="Neto del período" monto={formatearPesos(reporte.neto)} />
           </div>
+
+          <p className="text-xs text-muted-foreground">
+            El neto es lo que entró menos lo que salió en estos días. No es la plata
+            que hay en la Bolsa Grande.
+          </p>
 
           <Card>
             <CardHeader>
