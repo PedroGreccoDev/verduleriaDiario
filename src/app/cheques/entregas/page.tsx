@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { requerirPermiso } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -32,10 +33,12 @@ const FECHA = new Intl.DateTimeFormat("es-AR", {
  * a ciegas.
  */
 export default async function PaginaEntregas() {
+  await requerirPermiso("cheques.ver");
+
   const entregas = await historialEntregas();
 
   return (
-    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
+    <main className="app-page space-y-8">
       <header>
         <Link href="/cheques" className="text-sm text-muted-foreground hover:underline">
           ← Cartera

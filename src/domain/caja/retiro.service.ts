@@ -7,6 +7,8 @@ export interface DatosRetiro {
   monto: Decimal;
   fecha?: Date;
   observacion?: string | null;
+  /** Quién lo registra (§9). */
+  usuarioId?: string | null;
 }
 
 /**
@@ -33,6 +35,7 @@ export async function registrarRetiro(tx: PrismaTx, datos: DatosRetiro) {
     turnoId: datos.turnoId,
     fecha: datos.fecha,
     observacion: datos.observacion ?? null,
+    usuarioId: datos.usuarioId,
   });
 }
 

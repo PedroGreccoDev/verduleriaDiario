@@ -16,6 +16,8 @@ export interface DatosPagoEfectivo {
   observacion?: string | null;
   /** Por defecto se asocia al turno abierto. `null` lo deja fuera de turno. */
   turnoId?: string | null;
+  /** Quién lo carga (§9). */
+  usuarioId?: string | null;
 }
 
 /**
@@ -103,6 +105,7 @@ export async function pagarProveedorEnEfectivo(datos: DatosPagoEfectivo) {
       turnoId: datos.turnoId,
       fecha,
       observacion: datos.observacion ?? `Pago a ${proveedor.nombre}`,
+      usuarioId: datos.usuarioId,
     });
 
     return { pago, movimiento, proveedor: proveedorActualizado };

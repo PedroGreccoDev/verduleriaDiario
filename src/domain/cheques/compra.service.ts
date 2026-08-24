@@ -15,6 +15,8 @@ export interface DatosCompraCheque {
   observacion?: string | null;
   /** Por defecto se asocia al turno abierto. `null` lo deja fuera de turno. */
   turnoId?: string | null;
+  /** Quién la carga (§9). */
+  usuarioId?: string | null;
 }
 
 /**
@@ -61,6 +63,7 @@ export async function comprarCheque(datos: DatosCompraCheque) {
       turnoId: datos.turnoId,
       fecha: datos.fechaCompra,
       observacion: `Cheque ${cheque.banco} ${cheque.numero}`,
+      usuarioId: datos.usuarioId,
     });
 
     return { cheque, movimiento };

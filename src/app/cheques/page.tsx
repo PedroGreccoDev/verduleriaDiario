@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TarjetaTotal } from "@/components/tarjeta-total";
+import { requerirPermiso } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -33,12 +34,14 @@ const FECHA_CORTA = new Intl.DateTimeFormat("es-AR", {
 });
 
 export default async function PaginaCheques() {
+  await requerirPermiso("cheques.ver");
+
   const resumen = await resumenCartera();
   const hoy = new Date();
 
   return (
-    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
-      <header className="flex items-start justify-between gap-4">
+    <main className="app-page space-y-8">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="font-heading text-2xl font-semibold">Cartera de cheques</h1>
           <p className="text-sm text-muted-foreground">
@@ -46,7 +49,7 @@ export default async function PaginaCheques() {
             cosas distintas.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
           <Button asChild variant="outline">
             <Link href="/cheques/entregas">Entregas</Link>
           </Button>
@@ -86,11 +89,74 @@ export default async function PaginaCheques() {
         </CardHeader>
         <CardContent>
           {resumen.cheques.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No hay cheques en cartera.
-            </p>
+            <div className="flex flex-col items-start gap-3">
+              <p className="text-sm text-muted-foreground">
+                No hay cheques en cartera.
+              </p>
+              <Button asChild>
+                <Link href="/cheques/comprar">Comprar primer cheque</Link>
+              </Button>
+            </div>
           ) : (
-            <Table>
+            <>
+              <ul className="space-y-3 sm:hidden">
+                {resumen.cheques.map((cheque) => {
+                  const diasParaVencer = Math.round(
+                    (cheque.fechaVencimiento.getTime() - hoy.getTime()) / 86_400_000,
+                  );
+
+                  return (
+                    <li
+                      key={cheque.id}
+                      className="rounded-xl border border-border bg-white p-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div>
+                          <p className="font-semibold">
+                            {cheque.banco} {cheque.numero}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {cheque.librador} · de {cheque.vendedorCheque.nombre}
+                          </p>
+                        </div>
+                        <p className="font-heading text-lg font-bold tabular-nums">
+                          {formatearPesos(cheque.nominal)}
+                        </p>
+                      </div>
+
+                      <dl className="mt-3 grid grid-cols-2 gap-3 border-y border-border/70 py-3 text-xs">
+                        <div>
+                          <dt className="text-muted-foreground">Pagado</dt>
+                          <dd className="mt-0.5 font-medium tabular-nums">
+                            {formatearPesos(cheque.montoPagado)}
+                          </dd>
+                        </div>
+                        <div className="text-right">
+                          <dt className="text-muted-foreground">Vence</dt>
+                          <dd className="mt-0.5 font-medium">
+                            {FECHA_CORTA.format(cheque.fechaVencimiento)}
+                          </dd>
+                        </div>
+                      </dl>
+
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <div>
+                          {diasParaVencer <= 7 && (
+                            <Badge variant="destructive">
+                              {diasParaVencer < 0 ? "Vencido" : `${diasParaVencer} d`}
+                            </Badge>
+                          )}
+                        </div>
+                        <Button asChild variant="secondary" size="sm">
+                          <Link href={`/cheques/entregar/${cheque.id}`}>Entregar</Link>
+                        </Button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden sm:block">
+                <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Cheque</TableHead>
@@ -141,7 +207,9 @@ export default async function PaginaCheques() {
                   );
                 })}
               </TableBody>
-            </Table>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>

@@ -11,6 +11,8 @@ export interface DatosMovimientoManual {
   fecha?: Date;
   /** Por defecto se asocia al turno abierto. `null` lo deja fuera de turno. */
   turnoId?: string | null;
+  /** Quién lo carga (§9). */
+  usuarioId?: string | null;
 }
 
 /**
@@ -53,6 +55,7 @@ export async function registrarMovimientoManual(datos: DatosMovimientoManual) {
       turnoId: datos.turnoId,
       fecha: datos.fecha,
       observacion: datos.observacion ?? null,
+      usuarioId: datos.usuarioId,
     });
   });
 }

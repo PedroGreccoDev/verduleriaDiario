@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { ErrorDominio } from "@/lib/errores";
+import { exigirPermiso } from "@/lib/sesion";
 import { montoDeFormulario } from "@/lib/formulario-monto";
 import { abrirTurno, cerrarTurno } from "@/domain/caja/turno.service";
 import { registrarRetiroParcial } from "@/domain/caja/retiro.service";
@@ -14,9 +15,11 @@ import { registrarMovimientoManual } from "@/domain/caja/movimiento-manual.servi
  * resultado a algo que la UI pueda mostrar. Toda la lógica y todas las
  * validaciones viven en `src/domain` — acá no se decide nada.
  *
- * TODO(auth): estas funciones son alcanzables por POST directo, no solo desde la
- *   pantalla. Cuando exista el login, va una verificación de sesión al principio
- *   de cada una.
+ * Lo único que sí se decide acá es el permiso y el autor: cada acción empieza por
+ * `exigirPermiso`, que devuelve quién está trabajando, y ese id viaja al dominio
+ * como `usuarioId` (§9). La verificación va en cada acción y no solo en la
+ * pantalla porque una Server Action es un endpoint POST: se alcanza sin pasar por
+ * ninguna pantalla, y esconder el botón no protege nada.
  */
 
 export interface ResultadoAccion {
@@ -26,10 +29,17 @@ export interface ResultadoAccion {
 
 const EXITO: ResultadoAccion = { ok: true };
 
-/** Traduce los errores de dominio a un mensaje; deja pasar el resto. */
-async function ejecutar(accion: () => Promise<unknown>): Promise<ResultadoAccion> {
+/**
+ * Exige el permiso, corre la acción con el usuario que la ejecuta y traduce los
+ * errores de dominio a un mensaje. Deja pasar el resto.
+ */
+async function ejecutar(
+  permiso: string,
+  accion: (usuarioId: string) => Promise<unknown>,
+): Promise<ResultadoAccion> {
   try {
-    await accion();
+    const usuario = await exigirPermiso(permiso);
+    await accion(usuario.id);
   } catch (error) {
     if (error instanceof ErrorDominio) {
       return { ok: false, mensaje: error.message };
@@ -54,11 +64,12 @@ export async function accionRegistrarMovimiento(
 
   if (!categoriaId) return { ok: false, mensaje: "Elegí una categoría." };
 
-  return ejecutar(() =>
+  return ejecutar("caja.cargar", (usuarioId) =>
     registrarMovimientoManual({
       categoriaId,
       monto: montoDeFormulario(String(formulario.get("monto") ?? ""), "Monto"),
       observacion: observacion || null,
+      usuarioId,
     }),
   );
 }
@@ -74,8 +85,8 @@ export async function accionAbrirTurno(
     return { ok: false, mensaje: "Elegí qué turno estás abriendo." };
   }
 
-  return ejecutar(() =>
-    abrirTurno({ nombre, observacion: observacion || null }),
+  return ejecutar("turno.gestionar", (usuarioId) =>
+    abrirTurno({ nombre, observacion: observacion || null, usuarioId }),
   );
 }
 
@@ -86,11 +97,12 @@ export async function accionRegistrarRetiro(
   const turnoId = String(formulario.get("turnoId") ?? "");
   const observacion = String(formulario.get("observacion") ?? "").trim();
 
-  return ejecutar(() =>
+  return ejecutar("caja.cargar", (usuarioId) =>
     registrarRetiroParcial({
       turnoId,
       monto: montoDeFormulario(String(formulario.get("monto") ?? "")),
       observacion: observacion || "Retiro parcial",
+      usuarioId,
     }),
   );
 }
@@ -102,11 +114,12 @@ export async function accionCerrarTurno(
   const turnoId = String(formulario.get("turnoId") ?? "");
   const montoTexto = String(formulario.get("monto") ?? "").trim();
 
-  return ejecutar(() =>
+  return ejecutar("turno.gestionar", (usuarioId) =>
     cerrarTurno({
       turnoId,
       // Vacío significa cerrar sin retiro: puede haberse retirado todo antes.
       montoRetiro: montoTexto ? montoDeFormulario(montoTexto) : null,
+      usuarioId,
     }),
   );
 }

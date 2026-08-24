@@ -12,13 +12,21 @@
 //     entregados, agrupados por fecha_entrega (§2.3).
 //
 // §3 define usuario_id en turno, movimiento_caja y movimiento_cuenta_corriente.
-// NO se implementa: decisión tomada. El sistema tiene un único usuario compartido
-// entre los dos socios, así que el campo guardaría siempre el mismo valor y no
-// distinguiría nada. El login existe para que no entre cualquiera desde internet,
-// no para saber quién hizo cada cosa.
+// SÍ se implementa, desde §9. La decisión anterior —un único usuario compartido
+// entre los dos socios, login solo para que no entre cualquiera— se dio vuelta
+// cuando el local pasó a trabajar con empleados: ahora importa quién cargó qué.
 //
-// Si algún día quieren separar quién carga qué, la migración tiene que agregar la
-// columna nullable, backfillearla y recién entonces imponer NOT NULL + FK.
+// La columna es NULLABLE y se queda así. Todo lo cargado antes de que existieran
+// los usuarios no tiene autor y no se le inventa uno: `null` se muestra como
+// "antes de los usuarios". Backfillear con el primer administrador dejaría las
+// pantallas más prolijas a cambio de atribuirle a una persona movimientos que no
+// hizo, que es exactamente el tipo de dato que este campo existe para evitar.
+//
+// La FK es onDelete: SetNull, no Restrict. Borrar un usuario es una operación
+// real del sistema (§9) y deja sus movimientos sin autor, con el mismo `null` que
+// lo anterior a los usuarios. Es una pérdida de información asumida: el borrado
+// existe para que una cuenta pueda desaparecer de verdad, y guardar el nombre
+// igual sería no borrarla. Para conservar la autoría está la baja.
 
 generator client {
   provider = "prisma-client"
@@ -68,6 +76,10 @@ model Turno {
 
   observacion String?
 
+  /// Quién lo abrió. Null = turno anterior a los usuarios (ver cabecera).
+  usuarioId String?  @map("usuario_id")
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
   movimientos MovimientoCaja[]
 
   @@index([fecha])
@@ -116,10 +128,15 @@ model MovimientoCaja {
 
   observacion String?
 
+  /// Quién lo cargó. Null = movimiento anterior a los usuarios (ver cabecera).
+  usuarioId String?  @map("usuario_id")
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
   @@index([fecha, tipo])
   @@index([turnoId])
   @@index([categoriaId])
   @@index([referenciaTipo, referenciaId])
+  @@index([usuarioId])
   @@map("movimiento_caja")
 }
 
@@ -388,6 +405,112 @@ model MovimientoCuentaCorriente {
 
   observacion String?
 
+  /// Quién lo cargó. Null = movimiento anterior a los usuarios (ver cabecera).
+  usuarioId String?  @map("usuario_id")
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+
   @@index([clienteId, fecha])
+  @@index([usuarioId])
   @@map("movimiento_cuenta_corriente")
+}
+
+// ---------------------------------------------------------------------------
+// §9 Usuarios y permisos
+//
+// No estaba en la especificación original: se agrega porque el local pasa a
+// trabajar con varias personas y el dueño quiere decidir quién puede cargar,
+// quién puede anular y quién no entra a una sección.
+//
+// Reglas que atraviesan esta sección:
+//   - Los usuarios NO se borran, se desactivan. Un usuario borrado dejaría
+//     movimientos sin autor y rompería justamente lo que esto viene a dar.
+//   - Los permisos se guardan como filas concedidas: lo que no está, no se puede.
+//     Un permiso que se saca del código deja de existir sin migrar nada.
+//   - El rol es solo la plantilla que marca los checkboxes al crear el usuario.
+//     Después de eso manda la lista de permisos, no el rol.
+// ---------------------------------------------------------------------------
+
+/// Plantilla de permisos que se aplica al crear el usuario. NO se consulta para
+/// autorizar: quien decide siempre es `permiso_usuario`. Se guarda para poder
+/// mostrar "es un empleado" en la pantalla y para reaplicar la plantilla.
+enum RolUsuario {
+  dueno
+  admin
+  empleado
+}
+
+model Usuario {
+  id String @id @default(cuid())
+
+  /// Cómo se lo llama en pantalla: "Marcela Gómez".
+  nombre  String
+  /// Con qué entra: "marcela". Sin espacios, en minúsculas.
+  usuario String @unique
+
+  /// scrypt, en el formato que arma `src/lib/contrasena.ts`. Nunca la contraseña.
+  hashContrasena String @map("hash_contrasena")
+
+  rol RolUsuario
+
+  /// Los usuarios no se borran (ver cabecera). Uno inactivo no puede entrar y sus
+  /// movimientos siguen mostrando su nombre.
+  activo Boolean @default(true)
+
+  /// Lo prende el admin al restablecer una contraseña: la persona entra con la
+  /// provisoria y el sistema la obliga a elegir una propia antes de seguir. Sin
+  /// esto, la contraseña que tipeó el admin queda vigente para siempre y el admin
+  /// conoce la clave de todos.
+  debeCambiarContrasena Boolean @default(false) @map("debe_cambiar_contrasena")
+
+  creadoEn DateTime @default(now()) @map("creado_en")
+
+  permisos PermisoUsuario[]
+  sesiones SesionUsuario[]
+
+  turnos                     Turno[]
+  movimientosCaja            MovimientoCaja[]
+  movimientosCuentaCorriente MovimientoCuentaCorriente[]
+
+  @@index([activo])
+  @@map("usuario")
+}
+
+/// Un permiso concedido. La clave ("caja.anular") vive en el código, en
+/// `src/domain/usuarios/permisos.ts`, y no en una tabla: las secciones del sistema
+/// las define el código, no el dueño. Solo se guarda lo concedido.
+model PermisoUsuario {
+  id String @id @default(cuid())
+
+  usuarioId String  @map("usuario_id")
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  permiso String
+
+  @@unique([usuarioId, permiso])
+  @@map("permiso_usuario")
+}
+
+/// Sesión abierta. Se guarda en la base y no en un token firmado a propósito: así
+/// destildar un permiso tiene efecto en el próximo click, y no recién cuando la
+/// persona vuelva a entrar. También permite cerrarle la sesión a alguien desde la
+/// pantalla de usuarios.
+///
+/// §9: por decisión del dueño la sesión NO expira sola. Dura hasta que alguien
+/// toca "Salir" o hasta que un admin la cierra.
+model SesionUsuario {
+  id String @id @default(cuid())
+
+  /// SHA-256 del token que viaja en la cookie, nunca el token. Una copia de la
+  /// base —un backup, la PC prestada al técnico— no alcanza para entrar como otro.
+  hashToken String @unique @map("hash_token")
+
+  usuarioId String  @map("usuario_id")
+  usuario   Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+
+  creadaEn     DateTime @default(now()) @map("creada_en")
+  /// Para poder mostrar "última actividad" en la lista de sesiones abiertas.
+  ultimoAcceso DateTime @default(now()) @map("ultimo_acceso")
+
+  @@index([usuarioId])
+  @@map("sesion_usuario")
 }

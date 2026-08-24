@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { FormularioEntrega } from "../../_components/formulario-entrega";
+import { requerirPermiso } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ const FECHA_CORTA = new Intl.DateTimeFormat("es-AR", {
 export default async function PaginaEntregarCheque(
   props: PageProps<"/cheques/entregar/[chequeId]">,
 ) {
+  await requerirPermiso("cheques.cargar");
   const { chequeId } = await props.params;
   const { proveedor: proveedorId } = await props.searchParams;
 
@@ -38,7 +40,7 @@ export default async function PaginaEntregarCheque(
   const datos = seleccionado ? await datosParaEntrega(seleccionado) : null;
 
   return (
-    <main className="w-full max-w-2xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
+    <main className="app-page app-page-narrow space-y-8">
       <header className="space-y-1">
         <Link href="/cheques" className="text-sm text-muted-foreground hover:underline">
           ← Cartera

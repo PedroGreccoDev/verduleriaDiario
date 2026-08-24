@@ -1,16 +1,41 @@
-export function Logo({ className }: { className?: string }) {
+import Image from "next/image";
+
+export function Logo({
+  className,
+  grande = false,
+}: {
+  className?: string;
+  grande?: boolean;
+}) {
+  if (grande) {
+    return (
+      <div className={className}>
+        <Image
+          src="/brand/estacion-verde-logo-v2.png"
+          alt="Estación Verde — Frutas y Verduras"
+          width={206}
+          height={172}
+          priority
+          className="h-auto w-48 object-contain drop-shadow-[0_16px_32px_rgba(94,58,18,0.12)] sm:w-56"
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={`flex items-center gap-2.5 ${className ?? ""}`}>
-      <svg width="34" height="34" viewBox="0 0 28 28" className="shrink-0">
-        <circle cx="14" cy="14" r="13" fill="#F1E6CE" stroke="var(--border)" strokeWidth="0.75" />
-        <path d="M14 1a13 13 0 0 1 9.19 22.19L18 14Z" fill="var(--primary)" opacity="0.55" />
-        <circle cx="14" cy="14" r="9.5" fill="var(--primary)" />
-      </svg>
-      <div className="flex flex-col leading-[1.15]">
-        <span className="font-heading text-[15.5px] font-semibold tracking-tight">
-          Estación Verde
+    <div className={`flex items-center gap-2.5 md:justify-center ${className ?? ""}`}>
+      <Image
+        src="/brand/estacion-verde-logo-v2.png"
+        alt="Estación Verde — Frutas y Verduras"
+        width={132}
+        height={110}
+        className="h-12 w-14 shrink-0 object-contain md:h-auto md:w-32"
+      />
+      <div className="flex flex-col leading-[1.15] md:hidden">
+        <span className="font-heading text-[16px] font-extrabold tracking-[-0.035em] text-current">
+          estación verde
         </span>
-        <span className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
+        <span className="text-[9px] font-semibold tracking-[0.15em] text-current opacity-60 uppercase">
           Frutas y Verduras
         </span>
       </div>

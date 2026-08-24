@@ -35,7 +35,18 @@ export type CodigoError =
   | "IMPUTACION_DUPLICADA"
   // Clientes (§3.4)
   | "CLIENTE_NO_ENCONTRADO"
-  | "NOMBRE_REQUERIDO";
+  | "NOMBRE_REQUERIDO"
+  // Usuarios y permisos (§9)
+  | "USUARIO_NO_ENCONTRADO"
+  | "USUARIO_DUPLICADO"
+  | "USUARIO_INACTIVO"
+  | "USUARIO_INVALIDO"
+  | "CREDENCIALES_INVALIDAS"
+  | "CONTRASENA_INVALIDA"
+  | "PERMISO_DENEGADO"
+  | "SESION_INVALIDA"
+  | "SISTEMA_YA_INICIALIZADO"
+  | "ULTIMO_ADMINISTRADOR";
 
 export class ErrorDominio extends Error {
   constructor(

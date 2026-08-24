@@ -26,7 +26,7 @@ export function FormularioRetiro({ turnoId }: { turnoId: string }) {
     >
       <input type="hidden" name="turnoId" value={turnoId} />
 
-      <div className="grid gap-4 sm:grid-cols-[1fr_2fr]">
+      <div className="grid gap-4">
         <div className="space-y-2">
           <Label htmlFor="monto">Monto retirado</Label>
           <Input

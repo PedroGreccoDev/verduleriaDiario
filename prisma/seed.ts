@@ -2,6 +2,7 @@ import "dotenv/config";
 import { dec } from "@/lib/decimal";
 import { prisma } from "@/lib/prisma";
 import { sembrarCategoriasSistema } from "@/domain/caja/categorias";
+import { crearUsuario } from "@/domain/usuarios/usuario.service";
 import { abrirTurno, cerrarTurno } from "@/domain/caja/turno.service";
 import { registrarRetiroParcial } from "@/domain/caja/retiro.service";
 import { registrarMovimientoCaja } from "@/domain/caja/movimiento.service";
@@ -40,6 +41,12 @@ const TABLAS = [
   "cliente",
   "turno",
   "categoria_movimiento",
+  // Usuarios al final: movimiento_caja, movimiento_cuenta_corriente y turno les
+  // apuntan con onDelete: Restrict. TRUNCATE ... CASCADE lo resuelve igual, pero
+  // el orden deja claro qué depende de qué.
+  "sesion_usuario",
+  "permiso_usuario",
+  "usuario",
 ] as const;
 
 /**
@@ -77,6 +84,47 @@ async function main() {
 
   console.log("Categorías de movimiento…");
   await sembrarCategoriasSistema(prisma);
+
+  // --- Usuarios (§9) ---------------------------------------------------------
+  //
+  // Solo para desarrollo. En una instalación real no hay ninguna cuenta de
+  // fábrica: la primera la crea quien instala, en la pantalla de primer arranque,
+  // y elige él la contraseña. Este seed ya se niega a correr contra algo que no
+  // sea localhost.
+  //
+  // Todo lo que este seed carga más abajo queda SIN autor a propósito, y así se ve
+  // en pantalla: "—", cargado antes de que existieran los usuarios. Es el mismo
+  // estado en el que va a quedar la historia real del local al actualizar.
+  console.log("Usuarios…");
+
+  const CONTRASENA_DEV = "verduleria2026";
+
+  // La cuenta técnica. En una instalación real es la que crea quien instala, en la
+  // pantalla de primer arranque, y es la única que puede borrar cuentas y ver a
+  // los otros administradores. Para el dueño no existe: no la ve en el listado ni
+  // encuentra el rol en ningún selector (§9).
+  await crearUsuario({
+    nombre: "Soporte Técnico",
+    usuario: "soporte",
+    contrasena: CONTRASENA_DEV,
+    rol: "admin",
+  });
+
+  await crearUsuario({
+    nombre: "Rami Vélez",
+    usuario: "rami",
+    contrasena: CONTRASENA_DEV,
+    rol: "dueno",
+  });
+
+  await crearUsuario({
+    nombre: "Marcela Gómez",
+    usuario: "marcela",
+    contrasena: CONTRASENA_DEV,
+    rol: "empleado",
+  });
+
+  console.log(`  soporte / rami / marcela — contraseña: ${CONTRASENA_DEV}`);
 
   // --- Proveedores -----------------------------------------------------------
   console.log("Proveedores y facturas…");

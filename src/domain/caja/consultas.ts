@@ -18,6 +18,11 @@ export interface MovimientoDeTurno {
   categoria: string;
   monto: Decimal;
   observacion: string | null;
+  /**
+   * Quién lo cargó. `null` es un movimiento anterior a los usuarios (§9): no se
+   * le inventa un autor, se muestra como tal.
+   */
+  autor: string | null;
 }
 
 export interface EstadoCaja {
@@ -27,6 +32,8 @@ export interface EstadoCaja {
     fecha: Date;
     fechaApertura: Date;
     observacion: string | null;
+    /** Quién lo abrió. `null` si es anterior a los usuarios. */
+    autor: string | null;
   } | null;
   movimientos: MovimientoDeTurno[];
   totalIngresos: Decimal;
@@ -42,7 +49,10 @@ export async function obtenerEstadoCaja(hoy: Date = new Date()): Promise<EstadoC
   const fecha = soloFecha(hoy);
 
   const [turnoAbierto, turnosDelDia] = await Promise.all([
-    prisma.turno.findFirst({ where: { estado: "abierto" } }),
+    prisma.turno.findFirst({
+      where: { estado: "abierto" },
+      include: { usuario: { select: { nombre: true } } },
+    }),
     prisma.turno.findMany({
       where: { fecha },
       orderBy: { fechaApertura: "asc" },
@@ -53,7 +63,12 @@ export async function obtenerEstadoCaja(hoy: Date = new Date()): Promise<EstadoC
   const movimientos = turnoAbierto
     ? await prisma.movimientoCaja.findMany({
         where: { turnoId: turnoAbierto.id },
-        include: { categoria: true },
+        include: {
+          categoria: true,
+          // Solo el nombre: la pantalla no necesita nada más del usuario, y traer
+          // la fila entera arrastraría el hash de la contraseña hasta el render.
+          usuario: { select: { nombre: true } },
+        },
         orderBy: { fecha: "asc" },
       })
     : [];
@@ -81,6 +96,7 @@ export async function obtenerEstadoCaja(hoy: Date = new Date()): Promise<EstadoC
           fecha: turnoAbierto.fecha,
           fechaApertura: turnoAbierto.fechaApertura,
           observacion: turnoAbierto.observacion,
+          autor: turnoAbierto.usuario?.nombre ?? null,
         }
       : null,
     movimientos: movimientos.map((m) => ({
@@ -90,6 +106,7 @@ export async function obtenerEstadoCaja(hoy: Date = new Date()): Promise<EstadoC
       categoria: m.categoria.nombre,
       monto: m.monto,
       observacion: m.observacion,
+      autor: m.usuario?.nombre ?? null,
     })),
     totalIngresos,
     totalEgresos,

@@ -15,6 +15,8 @@ export interface DatosCargoCliente {
   monto: Decimal;
   fecha?: Date;
   observacion?: string | null;
+  /** Quién lo carga (§9). */
+  usuarioId?: string | null;
 }
 
 /**
@@ -44,6 +46,7 @@ export async function registrarCargoCliente(datos: DatosCargoCliente) {
         referenciaTipo: "manual",
         fecha: datos.fecha,
         observacion: datos.observacion ?? null,
+        usuarioId: datos.usuarioId ?? null,
       },
     });
 
@@ -63,6 +66,8 @@ export interface DatosPagoCliente {
   observacion?: string | null;
   /** Por defecto se asocia al turno abierto. `null` lo deja fuera de turno. */
   turnoId?: string | null;
+  /** Quién lo carga (§9). */
+  usuarioId?: string | null;
 }
 
 /**
@@ -95,6 +100,7 @@ export async function registrarPagoCliente(datos: DatosPagoCliente) {
         referenciaTipo: "pago",
         fecha,
         observacion: datos.observacion ?? null,
+        usuarioId: datos.usuarioId ?? null,
       },
     });
 
@@ -111,6 +117,7 @@ export async function registrarPagoCliente(datos: DatosPagoCliente) {
       turnoId: datos.turnoId,
       fecha,
       observacion: datos.observacion ?? `Cobro a ${cliente.nombre}`,
+      usuarioId: datos.usuarioId,
     });
 
     return { movimiento, movimientoCaja, cliente: clienteActualizado };

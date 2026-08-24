@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ErrorDominio } from "@/lib/errores";
+import { exigirPermiso } from "@/lib/sesion";
 import { montoDeFormulario } from "@/lib/formulario-monto";
 import { registrarCliente } from "@/domain/clientes/cliente.service";
 import {
@@ -14,8 +15,10 @@ import {
  * Server Actions de clientes. Capa fina: parsean, llaman al dominio, traducen el
  * error. Ninguna validación de negocio vive acá.
  *
- * TODO(auth): alcanzables por POST directo. Cuando exista el login, verificación
- *   de sesión al principio de cada una.
+ * Cada una empieza por `exigirPermiso`, que además devuelve quién está
+ * trabajando para registrarlo como autor del movimiento (§9). Va acá y no solo en
+ * la pantalla porque una Server Action es un endpoint POST: se alcanza sin pasar
+ * por ninguna pantalla.
  */
 
 export interface ResultadoAccion {
@@ -25,10 +28,12 @@ export interface ResultadoAccion {
 
 async function ejecutar(
   clienteId: string,
-  accion: () => Promise<unknown>,
+  permiso: string,
+  accion: (usuarioId: string) => Promise<unknown>,
 ): Promise<ResultadoAccion> {
   try {
-    await accion();
+    const usuario = await exigirPermiso(permiso);
+    await accion(usuario.id);
   } catch (error) {
     if (error instanceof ErrorDominio) {
       return { ok: false, mensaje: error.message };
@@ -57,6 +62,7 @@ export async function accionRegistrarCliente(
   let clienteId: string;
 
   try {
+    await exigirPermiso("clientes.cargar");
     const cliente = await registrarCliente({ nombre, telefono: telefono || null });
     clienteId = cliente.id;
   } catch (error) {
@@ -78,11 +84,12 @@ export async function accionFiar(
   const clienteId = String(formulario.get("clienteId") ?? "");
   const observacion = String(formulario.get("observacion") ?? "").trim();
 
-  return ejecutar(clienteId, () =>
+  return ejecutar(clienteId, "clientes.cargar", (usuarioId) =>
     registrarCargoCliente({
       clienteId,
       monto: montoDeFormulario(String(formulario.get("monto") ?? ""), "Monto"),
       observacion: observacion || null,
+      usuarioId,
     }),
   );
 }
@@ -95,11 +102,12 @@ export async function accionCobrar(
   const clienteId = String(formulario.get("clienteId") ?? "");
   const observacion = String(formulario.get("observacion") ?? "").trim();
 
-  return ejecutar(clienteId, () =>
+  return ejecutar(clienteId, "clientes.cargar", (usuarioId) =>
     registrarPagoCliente({
       clienteId,
       monto: montoDeFormulario(String(formulario.get("monto") ?? ""), "Monto"),
       observacion: observacion || null,
+      usuarioId,
     }),
   );
 }

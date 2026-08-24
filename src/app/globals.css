@@ -12,7 +12,7 @@
      defecto. La variable que define el layout es --font-geist-sans. */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-lora);
+  --font-heading: var(--font-nunito);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -52,38 +52,41 @@
 }
 
 :root {
-  --background: #EDE0C3;
-  --foreground: #2A2018;
-  --card: #E6D7AF;
-  --card-foreground: #2A2018;
-  --popover: #F7EFDD;
-  --popover-foreground: #2A2018;
-  --primary: #C15A2E;
-  --primary-foreground: #FBF3E4;
-  --secondary: #DCCBA0;
-  --secondary-foreground: #2A2018;
-  --muted: #E2D3A9;
-  --muted-foreground: #6B5D48;
-  --accent: #E7B79A;
-  --accent-foreground: #6E351E;
-  --destructive: oklch(0.55 0.18 29);
-  --border: #D2BF92;
-  --input: #D2BF92;
-  --ring: #C15A2E;
-  --chart-1: #C15A2E;
-  --chart-2: #8FA83A;
-  --chart-3: #6B5D48;
-  --chart-4: #A34B25;
-  --chart-5: #DCCBA0;
-  --radius: 0.625rem;
-  --sidebar: #E3D3AC;
-  --sidebar-foreground: #2A2018;
-  --sidebar-primary: #C15A2E;
-  --sidebar-primary-foreground: #FBF3E4;
-  --sidebar-accent: #F7EFDD;
-  --sidebar-accent-foreground: #C15A2E;
-  --sidebar-border: #D2BF92;
-  --sidebar-ring: #C15A2E;
+  --background: #f8f6ec;
+  --foreground: #1f2c25;
+  --card: #ffffff;
+  --card-foreground: #1f2c25;
+  --popover: #ffffff;
+  --popover-foreground: #1f2c25;
+  --primary: #e96800;
+  --primary-foreground: #ffffff;
+  --secondary: #e9eddb;
+  --secondary-foreground: #2b3b31;
+  --muted: #eeefe7;
+  --muted-foreground: #68746d;
+  --accent: #e8f4c7;
+  --accent-foreground: #315016;
+  --destructive: #bd3228;
+  --border: #dedfce;
+  --input: #d1d5c5;
+  --ring: #e96800;
+  --chart-1: #e96800;
+  --chart-2: #84bd18;
+  --chart-3: #e3ad36;
+  --chart-4: #2e5c4c;
+  --chart-5: #97a58d;
+  --radius: 0.75rem;
+  --content-wide: 80rem;
+  --content-medium: 64rem;
+  --content-narrow: 48rem;
+  --sidebar: #21362b;
+  --sidebar-foreground: #fbf7e8;
+  --sidebar-primary: #91cc1b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #304c3d;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #3b5748;
+  --sidebar-ring: #91cc1b;
 }
 
 .dark {
@@ -126,8 +129,123 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(circle at 100% 0%, rgba(233, 104, 0, 0.09), transparent 27rem),
+      radial-gradient(circle at 0% 100%, rgba(132, 189, 24, 0.07), transparent 30rem),
+      linear-gradient(135deg, #fbf8ec 0%, #f4f6eb 100%);
+    background-attachment: fixed;
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer components {
+  /* Una sola escala para todas las pantallas administrativas. */
+  .app-page {
+    width: 100%;
+    max-width: var(--content-wide);
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem;
+  }
+
+  .app-page-medium {
+    max-width: var(--content-medium);
+  }
+
+  .app-page-narrow {
+    max-width: var(--content-narrow);
+  }
+
+  .app-page > header h1,
+  .app-page > div:first-child h1 {
+    font-size: clamp(1.75rem, 1.45rem + 0.75vw, 2.25rem);
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+  }
+
+  .app-page > header {
+    position: relative;
+    padding-left: 1.1rem;
+  }
+
+  .app-page > header::before {
+    content: "";
+    position: absolute;
+    inset: 0.15rem auto 0.15rem 0;
+    width: 4px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, var(--primary) 0 62%, #91cc1b 62%);
+  }
+
+  .brand-auth {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+  }
+
+  .brand-auth::before,
+  .brand-auth::after {
+    content: "";
+    position: absolute;
+    z-index: -1;
+    border-radius: 999px;
+    pointer-events: none;
+  }
+
+  .brand-auth::before {
+    width: min(36rem, 78vw);
+    aspect-ratio: 1;
+    top: -24rem;
+    right: -13rem;
+    border: 5rem solid rgba(233, 104, 0, 0.08);
+  }
+
+  .brand-auth::after {
+    width: 18rem;
+    aspect-ratio: 1;
+    left: -10rem;
+    bottom: -9rem;
+    background: rgba(145, 204, 27, 0.08);
+  }
+
+  /* Los totales comparten una banda compacta, separada del resto de la página. */
+  .app-page > .grid:has(> [data-slot="total"]) {
+    gap: 0;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: var(--card);
+    padding-inline: 1.25rem;
+    box-shadow: 0 1px 2px rgba(24, 35, 31, 0.04), 0 12px 32px rgba(24, 35, 31, 0.045);
+  }
+
+  .app-page [data-slot="total"] + [data-slot="total"] {
+    border-top: 1px solid var(--border);
+  }
+
+  @media (min-width: 40rem) {
+    .app-page {
+      width: calc(100% - 2rem);
+      margin-block: 1rem;
+      padding: 1rem;
+    }
+
+    .app-page > .grid:has(> [data-slot="total"]) {
+      padding-inline: 2rem;
+    }
+
+    .app-page [data-slot="total"] + [data-slot="total"] {
+      border-top: 0;
+      border-left: 1px solid var(--border);
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .app-page {
+      width: calc(100% - 3rem);
+      margin-block: 1.5rem;
+      padding: 1.5rem;
+    }
   }
 }

@@ -9,6 +9,8 @@ export interface DatosAperturaTurno {
   nombre: string;
   fecha?: Date;
   observacion?: string | null;
+  /** Quién abre el turno (§9). */
+  usuarioId?: string | null;
 }
 
 export async function obtenerTurnoAbierto(cliente: PrismaTx = prisma) {
@@ -50,6 +52,7 @@ export async function abrirTurno(datos: DatosAperturaTurno) {
         nombre: datos.nombre,
         estado: "abierto",
         observacion: datos.observacion ?? null,
+        usuarioId: datos.usuarioId ?? null,
       },
     });
   });
@@ -65,6 +68,11 @@ export interface DatosCierreTurno {
   montoRetiro?: Decimal | null;
   fechaCierre?: Date;
   observacionRetiro?: string | null;
+  /**
+   * Quién cierra (§9). Va al retiro de cierre, no al turno: el `usuario_id` del
+   * turno es el de quien lo abrió, y sobrescribirlo al cerrar borraría ese dato.
+   */
+  usuarioId?: string | null;
 }
 
 /**
@@ -104,6 +112,7 @@ export async function cerrarTurno(datos: DatosCierreTurno) {
         turnoId: turno.id,
         monto: datos.montoRetiro,
         observacion: datos.observacionRetiro ?? "Retiro de cierre de turno",
+        usuarioId: datos.usuarioId,
       });
     }
 

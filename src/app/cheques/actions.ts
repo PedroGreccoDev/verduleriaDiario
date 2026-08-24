@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { dec } from "@/lib/decimal";
 import { ErrorDominio } from "@/lib/errores";
+import { exigirPermiso } from "@/lib/sesion";
 import { normalizarMontoTexto, normalizarPorcentajeTexto } from "@/lib/monto-texto";
 import { comprarCheque } from "@/domain/cheques/compra.service";
 import { entregarCheque } from "@/domain/cheques/entrega.service";
@@ -15,8 +16,10 @@ import type { ImputacionSolicitada } from "@/domain/proveedores/imputacion";
  * Server Actions de cheques. Capa fina: parsean, llaman al dominio, traducen el
  * error. Ninguna validación de negocio vive acá.
  *
- * TODO(auth): alcanzables por POST directo. Cuando exista el login, verificación
- *   de sesión al principio de cada una.
+ * Cada una empieza por `exigirPermiso`, que además devuelve quién está
+ * trabajando para registrarlo como autor (§9). Va acá y no solo en la pantalla
+ * porque una Server Action es un endpoint POST: se alcanza sin pasar por ninguna
+ * pantalla.
  */
 
 export interface ResultadoAccion {
@@ -38,12 +41,14 @@ function montoObligatorio(valor: string, campo: string) {
 }
 
 async function ejecutar(
-  accion: () => Promise<unknown>,
+  permiso: string,
+  accion: (usuarioId: string) => Promise<unknown>,
   /** Mensaje para cuando la base rechaza por índice único (P2002). */
   mensajeDuplicado?: string,
 ): Promise<ResultadoAccion> {
   try {
-    await accion();
+    const usuario = await exigirPermiso(permiso);
+    await accion(usuario.id);
   } catch (error) {
     if (error instanceof ErrorDominio) {
       return { ok: false, mensaje: error.message };
@@ -100,7 +105,8 @@ export async function accionComprarCheque(
   }
 
   return ejecutar(
-    () =>
+    "cheques.cargar",
+    (usuarioId) =>
       comprarCheque({
         vendedorChequeId,
         numero,
@@ -112,6 +118,7 @@ export async function accionComprarCheque(
         // UTC para que ningún corrimiento de zona lo pase al día anterior.
         fechaVencimiento: new Date(`${fechaVencimiento}T12:00:00Z`),
         observacion: texto("observacion") || null,
+        usuarioId,
       }),
     `Ya cargaste el cheque ${numero} del banco ${banco} librado por ${librador}.`,
   );
@@ -154,7 +161,7 @@ export async function accionEntregarCheque(
     });
   }
 
-  const resultado = await ejecutar(() =>
+  const resultado = await ejecutar("cheques.cargar", () =>
     entregarCheque({ chequeId, proveedorId, imputaciones }),
   );
 
@@ -171,7 +178,9 @@ export async function accionRechazarCheque(
 
   if (!motivo) return { ok: false, mensaje: "Escribí el motivo del rechazo." };
 
-  return ejecutar(() => rechazarCheque({ chequeId, motivo }));
+  // Rechazar es cargar, no anular: el cheque rebotó de verdad y eso se registra.
+  // La anulación es para lo que se cargó mal, y de eso se ocupa la reversión.
+  return ejecutar("cheques.cargar", () => rechazarCheque({ chequeId, motivo }));
 }
 
 /**
@@ -184,5 +193,5 @@ export async function accionRevertirEntrega(
 ): Promise<ResultadoAccion> {
   const chequeId = String(formulario.get("chequeId") ?? "");
 
-  return ejecutar(() => revertirEntregaCheque({ chequeId }));
+  return ejecutar("cheques.anular", () => revertirEntregaCheque({ chequeId }));
 }

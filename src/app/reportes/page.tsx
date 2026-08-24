@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/select";
 import { DatePicker } from "@/components/date-picker";
 import { TarjetaTotal } from "@/components/tarjeta-total";
+import { requerirPermiso } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -67,6 +68,7 @@ function primerValor(valor: string | string[] | undefined): string {
 }
 
 export default async function PaginaReporte(props: PageProps<"/reportes">) {
+  await requerirPermiso("reportes.ver");
   const parametros = await props.searchParams;
 
   const presetPedido = primerValor(parametros.preset);
@@ -97,7 +99,7 @@ export default async function PaginaReporte(props: PageProps<"/reportes">) {
     : null;
 
   return (
-    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
+    <main className="app-page space-y-8">
       <header className="space-y-1">
         <h1 className="font-heading text-2xl font-semibold">Ingresos y egresos</h1>
         <p className="text-sm text-muted-foreground">
@@ -238,7 +240,39 @@ export default async function PaginaReporte(props: PageProps<"/reportes">) {
                   No hubo movimientos en este período.
                 </p>
               ) : (
-                <Table>
+                <>
+                  <ul className="space-y-3 sm:hidden">
+                    {reporte.movimientos.map((movimiento) => (
+                      <li
+                        key={movimiento.id}
+                        className="rounded-xl border border-border bg-white p-4 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="font-medium">{movimiento.categoria}</p>
+                            {movimiento.observacion && (
+                              <p className="mt-0.5 text-xs text-muted-foreground">
+                                {movimiento.observacion}
+                              </p>
+                            )}
+                          </div>
+                          <p
+                            className={`font-heading text-lg font-bold tabular-nums ${
+                              movimiento.tipo === "egreso" ? "text-destructive" : ""
+                            }`}
+                          >
+                            {movimiento.tipo === "egreso" ? "−" : "+"}
+                            {formatearPesos(movimiento.monto)}
+                          </p>
+                        </div>
+                        <p className="mt-3 border-t border-border/70 pt-3 text-xs text-muted-foreground">
+                          {FECHA_Y_HORA.format(movimiento.fecha)} · {movimiento.turno?.nombre ?? "fuera de turno"}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="hidden sm:block">
+                    <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Cuándo</TableHead>
@@ -275,7 +309,9 @@ export default async function PaginaReporte(props: PageProps<"/reportes">) {
                       </TableRow>
                     ))}
                   </TableBody>
-                </Table>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

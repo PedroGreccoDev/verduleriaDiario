@@ -9,19 +9,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ListaMovimientos } from "./_components/lista-movimientos";
 import { FormularioAbrirTurno } from "./_components/formulario-abrir-turno";
 import { FormularioRetiro } from "./_components/formulario-retiro";
 import { FormularioCerrarTurno } from "./_components/formulario-cerrar-turno";
 import { FormularioMovimientoManual } from "./_components/formulario-movimiento-manual";
+import { puede, requerirPermiso } from "@/lib/sesion";
 
 // Lee el estado de la caja en cada request. Sin esto Next lo prerenderizaría en el
 // build y la pantalla mostraría el turno que estaba abierto al momento de compilar.
@@ -32,88 +26,136 @@ export const metadata = {
 };
 
 export default async function PaginaCaja() {
+  const usuario = await requerirPermiso("caja.ver");
+
+  // Quien no puede cargar tampoco ve los formularios. Las Server Actions lo
+  // rechazarían igual, pero un botón que siempre da error es peor que no estar.
+  const puedeCargar = puede(usuario, "caja.cargar");
+  const puedeGestionarTurno = puede(usuario, "turno.gestionar");
+
   const estado = await obtenerEstadoCaja();
   const categorias = await categoriasParaCargarAMano();
   const { turnoAbierto } = estado;
 
   // Se carga con turno abierto y sin él: §3.1 admite movimientos fuera de turno, y
   // la nafta se paga a las 7 de la mañana, antes de que nadie abra nada.
-  const cargarMovimiento = (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Gasto o ingreso suelto</CardTitle>
-        <CardDescription>
-          Lo que no viene de otra pantalla: nafta, arreglos, plata que pone o saca
-          un socio.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <FormularioMovimientoManual
-          categorias={categorias.map((categoria) => ({
-            id: categoria.id,
-            nombre: categoria.nombre,
-            tipo: categoria.tipo,
-          }))}
-          hayTurnoAbierto={turnoAbierto !== null}
-        />
-      </CardContent>
-    </Card>
+  const formularioMovimiento = !puedeCargar ? null : (
+    <FormularioMovimientoManual
+      categorias={categorias.map((categoria) => ({
+        id: categoria.id,
+        nombre: categoria.nombre,
+        tipo: categoria.tipo,
+      }))}
+      hayTurnoAbierto={turnoAbierto !== null}
+    />
   );
 
   return (
-    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
-      <header className="space-y-1">
-        <h1 className="font-heading text-2xl font-semibold">Caja por turno</h1>
-        <p className="text-sm text-muted-foreground first-letter:uppercase">
-          {/* `soloFecha` primero: `formatearFechaLarga` formatea en UTC, así que un
-              `new Date()` crudo del turno tarde muestra el día siguiente. */}
-          {formatearFechaLarga(soloFecha())}
-        </p>
-      </header>
+    <main className="app-page space-y-8">
+      {!turnoAbierto && (
+        <header className="space-y-1">
+          <h1 className="font-heading text-2xl font-semibold">Caja</h1>
+          <p className="text-sm text-muted-foreground first-letter:uppercase">
+            {/* `soloFecha` primero: `formatearFechaLarga` formatea en UTC, así que un
+                `new Date()` crudo del turno tarde muestra el día siguiente. */}
+            {formatearFechaLarga(soloFecha())}
+          </p>
+        </header>
+      )}
 
       {turnoAbierto ? (
         <>
-          <div className="grid items-start gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <CardTitle className="capitalize">
-                      Turno {turnoAbierto.nombre}
-                    </CardTitle>
-                    <CardDescription>
-                      Abierto a las {formatearHora(turnoAbierto.fechaApertura)}
-                      {turnoAbierto.observacion ? ` · ${turnoAbierto.observacion}` : ""}
-                    </CardDescription>
-                  </div>
-                  <Badge>Abierto</Badge>
-                </div>
-              </CardHeader>
-
-              <CardContent className="space-y-6">
-                <dl className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                  <Total etiqueta="Retirado a la Bolsa Grande" monto={estado.totalRetirado} />
-                  <Total etiqueta="Otros ingresos" monto={estado.totalIngresos.minus(estado.totalRetirado)} />
-                  <Total etiqueta="Egresos" monto={estado.totalEgresos} />
-                </dl>
-
-                <Separator />
-
-                <section className="space-y-3">
-                  <h2 className="text-sm font-medium">Registrar un retiro</h2>
-                  <p className="text-xs text-muted-foreground">
-                    El efectivo pasa de la registradora a la Bolsa Grande. Podés
-                    hacer varios retiros parciales durante el turno.
+          <section className="overflow-hidden rounded-2xl bg-sidebar text-sidebar-foreground shadow-[0_18px_45px_rgba(25,48,37,0.16)]">
+            <div className="px-5 py-5 sm:px-7 sm:py-6">
+              <div className="flex items-start gap-3">
+                <span
+                  className="mt-1.5 size-2.5 shrink-0 rounded-full bg-sidebar-primary shadow-[0_0_0_5px_rgba(145,204,27,0.12)]"
+                  aria-hidden="true"
+                />
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-white/50">
+                    Caja abierta
                   </p>
-                  <FormularioRetiro turnoId={turnoAbierto.id} />
-                </section>
-              </CardContent>
-            </Card>
+                  <h1 className="mt-1 font-heading text-2xl font-bold capitalize">
+                    Turno {turnoAbierto.nombre}
+                  </h1>
+                  <p className="mt-1 text-sm text-white/58 first-letter:uppercase">
+                    {formatearFechaLarga(soloFecha())} · abierto a las{" "}
+                    {formatearHora(turnoAbierto.fechaApertura)}
+                    {turnoAbierto.autor ? ` por ${turnoAbierto.autor}` : ""}
+                    {turnoAbierto.observacion ? ` · ${turnoAbierto.observacion}` : ""}
+                  </p>
+                </div>
+              </div>
+            </div>
 
-            {cargarMovimiento}
-          </div>
+            <dl className="grid border-t border-white/10 bg-black/8 sm:grid-cols-3 sm:divide-x sm:divide-white/10">
+              <Total etiqueta="Retirado a Bolsa Grande" monto={estado.totalRetirado} oscuro />
+              <Total
+                etiqueta="Otros ingresos"
+                monto={estado.totalIngresos.minus(estado.totalRetirado)}
+                oscuro
+              />
+              <Total etiqueta="Egresos" monto={estado.totalEgresos} oscuro />
+            </dl>
+          </section>
 
-          <Card>
+          <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_26rem]">
+            <aside className="space-y-4 xl:order-2 xl:sticky xl:top-6">
+              {puedeCargar && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Registrar movimiento</CardTitle>
+                    <CardDescription>
+                      Cargá lo que entra o sale de la caja.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Tabs defaultValue="retiro">
+                      <TabsList className="grid w-full grid-cols-2">
+                        <TabsTrigger value="retiro">Retiro</TabsTrigger>
+                        <TabsTrigger value="otro">Otro movimiento</TabsTrigger>
+                      </TabsList>
+                      <TabsContent value="retiro" className="space-y-4">
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          Pasa efectivo de la registradora a la Bolsa Grande.
+                        </p>
+                        <FormularioRetiro turnoId={turnoAbierto.id} />
+                      </TabsContent>
+                      <TabsContent value="otro" className="space-y-4">
+                        <p className="text-xs leading-relaxed text-muted-foreground">
+                          Nafta, arreglos o plata que pone o saca un socio.
+                        </p>
+                        {formularioMovimiento}
+                      </TabsContent>
+                    </Tabs>
+                  </CardContent>
+                </Card>
+              )}
+
+              {puedeGestionarTurno && (
+                <details className="group overflow-hidden rounded-xl border border-border bg-card/65">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 text-sm font-medium marker:hidden">
+                    Finalizar turno
+                    <svg
+                      viewBox="0 0 20 20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      aria-hidden="true"
+                      className="size-4 transition-transform group-open:rotate-180"
+                    >
+                      <path d="m6 8 4 4 4-4" />
+                    </svg>
+                  </summary>
+                  <div className="border-t border-border px-4 py-4">
+                    <FormularioCerrarTurno turnoId={turnoAbierto.id} />
+                  </div>
+                </details>
+              )}
+            </aside>
+
+          <Card className="xl:order-1">
             <CardHeader>
               <CardTitle className="text-base">Movimientos del turno</CardTitle>
               <CardDescription>
@@ -126,52 +168,22 @@ export default async function PaginaCaja() {
                   Todavía no hay movimientos en este turno.
                 </p>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-16">Hora</TableHead>
-                      <TableHead>Categoría</TableHead>
-                      <TableHead className="text-right">Monto</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {estado.movimientos.map((movimiento) => (
-                      <TableRow key={movimiento.id}>
-                        <TableCell className="text-muted-foreground tabular-nums">
-                          {formatearHora(movimiento.fecha)}
-                        </TableCell>
-                        <TableCell>
-                          <span>{movimiento.categoria}</span>
-                          {movimiento.observacion && (
-                            <span className="block text-xs text-muted-foreground">
-                              {movimiento.observacion}
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell
-                          className={`text-right tabular-nums ${
-                            movimiento.tipo === "egreso" ? "text-destructive" : ""
-                          }`}
-                        >
-                          {movimiento.tipo === "egreso" ? "−" : "+"}
-                          {formatearPesos(movimiento.monto)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                <ListaMovimientos
+                  movimientos={[...estado.movimientos].reverse().map((movimiento) => ({
+                    id: movimiento.id,
+                    hora: formatearHora(movimiento.fecha),
+                    tipo: movimiento.tipo,
+                    categoria: movimiento.categoria,
+                    monto: formatearPesos(movimiento.monto),
+                    observacion: movimiento.observacion,
+                    autor: movimiento.autor,
+                  }))}
+                />
               )}
             </CardContent>
           </Card>
 
-          <Card className="lg:max-w-md">
-            <CardHeader>
-              <CardTitle className="text-base">Cerrar el turno</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FormularioCerrarTurno turnoId={turnoAbierto.id} />
-            </CardContent>
-          </Card>
+          </div>
         </>
       ) : (
         <div className="grid items-start gap-6 lg:grid-cols-2">
@@ -179,20 +191,36 @@ export default async function PaginaCaja() {
             <CardHeader>
               <CardTitle className="text-base">No hay ningún turno abierto</CardTitle>
               <CardDescription>
-                {estado.proximoSugerido
-                  ? `Hoy corresponde el turno ${estado.proximoSugerido}.`
-                  : "Hoy ya se abrieron todos los turnos habituales."}
+                {!puedeGestionarTurno
+                  ? "Los turnos los abre otra persona."
+                  : estado.proximoSugerido
+                    ? `Hoy corresponde el turno ${estado.proximoSugerido}.`
+                    : "Hoy ya se abrieron todos los turnos habituales."}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <FormularioAbrirTurno
-                sugeridos={estado.sugeridos}
-                proximoSugerido={estado.proximoSugerido}
-              />
-            </CardContent>
+            {puedeGestionarTurno && (
+              <CardContent>
+                <FormularioAbrirTurno
+                  sugeridos={estado.sugeridos}
+                  proximoSugerido={estado.proximoSugerido}
+                />
+              </CardContent>
+            )}
           </Card>
 
-          {cargarMovimiento}
+          {formularioMovimiento && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Gasto o ingreso suelto</CardTitle>
+                <CardDescription>
+                  Podés registrar movimientos aunque todavía no haya un turno abierto.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {formularioMovimiento}
+              </CardContent>
+            </Card>
+          )}
         </div>
       )}
 
@@ -218,14 +246,24 @@ export default async function PaginaCaja() {
 function Total({
   etiqueta,
   monto,
+  oscuro = false,
 }: {
   etiqueta: string;
   monto: Awaited<ReturnType<typeof obtenerEstadoCaja>>["totalIngresos"];
+  oscuro?: boolean;
 }) {
   return (
-    <div>
-      <dt className="text-xs text-muted-foreground">{etiqueta}</dt>
-      <dd className="text-lg font-semibold tabular-nums">{formatearPesos(monto)}</dd>
+    <div className="px-5 py-4 sm:px-7 sm:py-5">
+      <dt className={`text-xs ${oscuro ? "text-white/48" : "text-muted-foreground"}`}>
+        {etiqueta}
+      </dt>
+      <dd
+        className={`mt-1 font-heading text-xl font-bold tabular-nums ${
+          oscuro ? "text-white" : ""
+        }`}
+      >
+        {formatearPesos(monto)}
+      </dd>
     </div>
   );
 }

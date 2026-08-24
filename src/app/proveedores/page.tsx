@@ -19,6 +19,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { TarjetaTotal } from "@/components/tarjeta-total";
+import { FiltrosCuentas, type EstadoCuenta } from "@/components/filtros-cuentas";
+import { requerirPermiso } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -35,9 +37,22 @@ const FECHA_CORTA = new Intl.DateTimeFormat("es-AR", {
 /** Un vencimiento a menos de esto ya es algo que hay que mirar hoy. */
 const DIAS_URGENTE = 7;
 
-export default async function PaginaProveedores() {
+export default async function PaginaProveedores(props: PageProps<"/proveedores">) {
+  await requerirPermiso("proveedores.ver");
+  const parametros = await props.searchParams;
+  const consulta = textoParametro(parametros.q).trim().toLocaleLowerCase("es");
+  const estado = estadoParametro(parametros.estado);
   const proveedores = await proveedoresConDeuda();
   const hoy = new Date();
+  const proveedoresFiltrados = proveedores.filter((proveedor) => {
+    const coincideNombre = proveedor.nombre.toLocaleLowerCase("es").includes(consulta);
+    const coincideEstado =
+      estado === "todos" ||
+      (estado === "deuda" && esPositivo(proveedor.saldo)) ||
+      (estado === "favor" && proveedor.saldo.isNegative()) ||
+      (estado === "aldia" && proveedor.saldo.isZero());
+    return coincideNombre && coincideEstado;
+  });
 
   // Deuda y crédito se muestran separados, nunca netos: deberle $100.000 a uno y
   // tener $30.000 a favor con otro no es "deber $70.000". Son dos cuentas
@@ -48,7 +63,7 @@ export default async function PaginaProveedores() {
   const aFavor = conCredito.reduce((total, p) => total.plus(p.saldo.abs()), CERO);
 
   return (
-    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
+    <main className="app-page space-y-8">
       <header className="space-y-1">
         <h1 className="font-heading text-2xl font-semibold">Proveedores</h1>
         <p className="text-sm text-muted-foreground">
@@ -72,8 +87,17 @@ export default async function PaginaProveedores() {
       <p className="text-xs text-muted-foreground">
         Los dos totales van separados: el saldo a favor que haya con uno no se
         descuenta de lo que se le debe a otro. Cada saldo a favor se descuenta solo
+
         de la próxima factura de ese mismo proveedor.
       </p>
+      <FiltrosCuentas
+        ruta="/proveedores"
+        consulta={textoParametro(parametros.q).trim()}
+        estado={estado}
+        total={proveedores.length}
+        mostrados={proveedoresFiltrados.length}
+      />
+
 
       <Card>
         <CardHeader>
@@ -84,21 +108,16 @@ export default async function PaginaProveedores() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {proveedores.length === 0 ? (
+          {proveedoresFiltrados.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No hay proveedores activos.
+              {proveedores.length === 0
+                ? "No hay proveedores activos."
+                : "No encontramos proveedores con esos filtros."}
             </p>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Proveedor</TableHead>
-                  <TableHead>Vence</TableHead>
-                  <TableHead className="text-right">Saldo</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {proveedores.map((proveedor) => {
+            <>
+              <ul className="space-y-3 sm:hidden">
+                {proveedoresFiltrados.map((proveedor) => {
                   const diasParaVencer = proveedor.proximoVencimiento
                     ? Math.round(
                         (proveedor.proximoVencimiento.getTime() - hoy.getTime()) /
@@ -107,11 +126,74 @@ export default async function PaginaProveedores() {
                     : null;
 
                   return (
-                    <TableRow key={proveedor.id}>
+                    <li key={proveedor.id}>
+                      <Link
+                        href={`/proveedores/${proveedor.id}`}
+                        className="block rounded-xl border border-border bg-white p-4 shadow-sm transition-colors hover:border-primary/35 hover:bg-primary/[0.03] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/30"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="font-semibold">{proveedor.nombre}</p>
+                            <p className="mt-0.5 text-xs text-muted-foreground">
+                              {proveedor.facturasPendientes === 0
+                                ? "Sin facturas pendientes"
+                                : `${proveedor.facturasPendientes} factura${proveedor.facturasPendientes === 1 ? "" : "s"} pendiente${proveedor.facturasPendientes === 1 ? "" : "s"}`}
+                            </p>
+                          </div>
+                          <div className="text-right tabular-nums">
+                            <p className="font-heading text-lg font-bold">
+                              {proveedor.saldo.isNegative()
+                                ? formatearPesos(proveedor.saldo.abs())
+                                : proveedor.saldo.isZero()
+                                  ? "Al día"
+                                  : formatearPesos(proveedor.saldo)}
+                            </p>
+                            {proveedor.saldo.isNegative() && (
+                              <p className="text-xs text-muted-foreground">a favor nuestro</p>
+                            )}
+                          </div>
+                        </div>
+                        {proveedor.proximoVencimiento && (
+                          <div className="mt-3 flex items-center justify-between border-t border-border/70 pt-3 text-xs">
+                            <span className="text-muted-foreground">
+                              Vence {FECHA_CORTA.format(proveedor.proximoVencimiento)}
+                            </span>
+                            {diasParaVencer !== null && diasParaVencer <= DIAS_URGENTE && (
+                              <Badge variant="destructive">
+                                {diasParaVencer < 0 ? "Vencida" : `${diasParaVencer} d`}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+              <div className="hidden sm:block">
+                <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Proveedor</TableHead>
+                  <TableHead>Vence</TableHead>
+                  <TableHead className="text-right">Saldo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {proveedoresFiltrados.map((proveedor) => {
+                  const diasParaVencer = proveedor.proximoVencimiento
+                    ? Math.round(
+                        (proveedor.proximoVencimiento.getTime() - hoy.getTime()) /
+                          86_400_000,
+                      )
+                    : null;
+
+                  return (
+                    <TableRow key={proveedor.id} className="relative">
                       <TableCell>
                         <Link
                           href={`/proveedores/${proveedor.id}`}
-                          className="font-medium hover:underline"
+                          className="font-medium outline-none after:absolute after:inset-0 after:rounded-lg hover:underline focus-visible:after:ring-2 focus-visible:after:ring-ring"
                         >
                           {proveedor.nombre}
                         </Link>
@@ -160,10 +242,23 @@ export default async function PaginaProveedores() {
                   );
                 })}
               </TableBody>
-            </Table>
+                </Table>
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
     </main>
   );
+}
+
+function textoParametro(valor: string | string[] | undefined): string {
+  return typeof valor === "string" ? valor : "";
+}
+
+function estadoParametro(valor: string | string[] | undefined): EstadoCuenta {
+  const estado = textoParametro(valor);
+  return estado === "deuda" || estado === "favor" || estado === "aldia"
+    ? estado
+    : "todos";
 }

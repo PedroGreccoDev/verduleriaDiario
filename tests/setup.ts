@@ -46,6 +46,12 @@ const TABLAS = [
   "cliente",
   "turno",
   "categoria_movimiento",
+  // Usuarios al final: movimiento_caja, movimiento_cuenta_corriente y turno les
+  // apuntan con onDelete: Restrict. TRUNCATE ... CASCADE lo resuelve igual, pero
+  // el orden deja claro qué depende de qué.
+  "sesion_usuario",
+  "permiso_usuario",
+  "usuario",
 ] as const;
 
 export async function limpiarBase() {

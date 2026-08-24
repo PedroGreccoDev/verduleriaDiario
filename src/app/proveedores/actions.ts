@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { dec } from "@/lib/decimal";
 import { ErrorDominio } from "@/lib/errores";
+import { exigirPermiso } from "@/lib/sesion";
 import { montoDeFormulario } from "@/lib/formulario-monto";
 import { normalizarMontoTexto } from "@/lib/monto-texto";
 import { crearFacturaProveedor } from "@/domain/proveedores/factura.service";
@@ -13,8 +14,10 @@ import type { ImputacionSolicitada } from "@/domain/proveedores/imputacion";
  * Server Actions de proveedores. Capa fina: parsean, llaman al dominio, traducen
  * el error. Ninguna validación de negocio vive acá.
  *
- * TODO(auth): alcanzables por POST directo. Cuando exista el login, verificación
- *   de sesión al principio de cada una.
+ * Cada una empieza por `exigirPermiso`, que además devuelve quién está
+ * trabajando para registrarlo como autor (§9). Va acá y no solo en la pantalla
+ * porque una Server Action es un endpoint POST: se alcanza sin pasar por ninguna
+ * pantalla.
  */
 
 export interface ResultadoAccion {
@@ -24,12 +27,14 @@ export interface ResultadoAccion {
 
 async function ejecutar(
   proveedorId: string,
-  accion: () => Promise<unknown>,
+  permiso: string,
+  accion: (usuarioId: string) => Promise<unknown>,
   /** Mensaje para cuando la base rechaza por índice único (P2002). */
   mensajeDuplicado?: string,
 ): Promise<ResultadoAccion> {
   try {
-    await accion();
+    const usuario = await exigirPermiso(permiso);
+    await accion(usuario.id);
   } catch (error) {
     if (error instanceof ErrorDominio) {
       return { ok: false, mensaje: error.message };
@@ -82,6 +87,7 @@ export async function accionCrearFactura(
 
   return ejecutar(
     proveedorId,
+    "proveedores.cargar",
     () =>
       crearFacturaProveedor({
         proveedorId,
@@ -138,12 +144,13 @@ export async function accionPagarEnEfectivo(
     });
   }
 
-  return ejecutar(proveedorId, () =>
+  return ejecutar(proveedorId, "proveedores.cargar", (usuarioId) =>
     pagarProveedorEnEfectivo({
       proveedorId,
       monto: montoDeFormulario(String(formulario.get("monto") ?? ""), "Monto del pago"),
       imputaciones,
       observacion: observacion || null,
+      usuarioId,
     }),
   );
 }

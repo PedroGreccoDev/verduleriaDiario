@@ -20,6 +20,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { FormularioMovimiento } from "../_components/formulario-movimiento";
+import { requerirPermiso } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +41,7 @@ const FECHA_LARGA = new Intl.DateTimeFormat("es-AR", {
 export default async function PaginaCuentaCliente(
   props: PageProps<"/clientes/[clienteId]">,
 ) {
+  await requerirPermiso("clientes.ver");
   const { clienteId } = await props.params;
 
   const cuenta = await cuentaDeCliente(clienteId);
@@ -50,7 +52,7 @@ export default async function PaginaCuentaCliente(
   const aFavor = cliente.saldo.isNegative() ? cliente.saldo.abs() : null;
 
   return (
-    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
+    <main className="app-page app-page-medium space-y-8">
       <header className="space-y-1">
         <Link href="/clientes" className="text-sm text-muted-foreground hover:underline">
           ← Clientes

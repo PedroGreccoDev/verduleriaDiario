@@ -20,6 +20,15 @@ interface BaseMovimientoCaja {
   turnoId?: string | null;
   fecha?: Date;
   observacion?: string | null;
+  /**
+   * Quién lo carga (§9). Lo pasa siempre la capa de Server Actions, que es la que
+   * conoce la sesión: el dominio no sabe que existen las cookies.
+   *
+   * Es opcional porque el seed y los tests registran movimientos sin usuario, y
+   * porque un movimiento sin autor es un estado legítimo — así quedó todo lo
+   * cargado antes de que existieran los usuarios.
+   */
+  usuarioId?: string | null;
 }
 
 /**
@@ -73,6 +82,7 @@ export async function registrarMovimientoCaja(tx: PrismaTx, datos: DatosMovimien
       turnoId,
       fecha: datos.fecha,
       observacion: datos.observacion ?? null,
+      usuarioId: datos.usuarioId ?? null,
     },
   });
 }

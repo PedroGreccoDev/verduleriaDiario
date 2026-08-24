@@ -25,6 +25,7 @@ import {
 import { TarjetaTotal } from "@/components/tarjeta-total";
 import { FormularioFactura } from "../_components/formulario-factura";
 import { FormularioPagoEfectivo } from "../_components/formulario-pago-efectivo";
+import { requerirPermiso } from "@/lib/sesion";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +52,7 @@ const ETIQUETA_ESTADO: Record<string, string> = {
 export default async function PaginaCuentaProveedor(
   props: PageProps<"/proveedores/[proveedorId]">,
 ) {
+  await requerirPermiso("proveedores.ver");
   const { proveedorId } = await props.params;
 
   const cuenta = await cuentaDeProveedor(proveedorId);
@@ -63,7 +65,7 @@ export default async function PaginaCuentaProveedor(
   const credito = proveedor.saldo.isNegative() ? proveedor.saldo.abs() : null;
 
   return (
-    <main className="w-full max-w-4xl px-5 py-6 sm:px-8 md:px-10 md:py-10 space-y-6">
+    <main className="app-page app-page-medium space-y-8">
       <header className="space-y-1">
         <Link href="/proveedores" className="text-sm text-muted-foreground hover:underline">
           ← Proveedores
